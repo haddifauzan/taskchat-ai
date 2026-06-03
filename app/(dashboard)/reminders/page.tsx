@@ -80,8 +80,8 @@ export default async function RemindersPage() {
                       : `${diffDays} hari lagi`}
                   </p>
                   <p className="text-[10px] text-[#9ca3af]">
-                    {dl.toLocaleDateString("id-ID", { day: "numeric", month: "short" })}{" "}
-                    {dl.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
+                    {dl.toLocaleDateString("id-ID", { day: "numeric", month: "short", timeZone: "Asia/Jakarta" })}{" "}
+                    {dl.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" })}
                   </p>
                 </div>
               </div>

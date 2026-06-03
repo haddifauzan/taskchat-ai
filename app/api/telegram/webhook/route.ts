@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest } from "next/server";
+import { formatDeadlineForDb } from "@/utils/date";
 
 // Admin client to bypass RLS for webhook operations (running server-to-server)
 function createAdminClient() {
@@ -208,7 +209,7 @@ export async function POST(request: NextRequest) {
         let msg = `📅 <b>Tugas Hari Ini (${tasks.length}):</b>\n\n`;
         tasks.forEach((t: any, i: number) => {
           const courseName = t.courses?.name || "Tanpa Mata Kuliah";
-          const time = t.deadline ? new Date(t.deadline).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) : "-";
+          const time = t.deadline ? new Date(t.deadline).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" }) : "-";
           msg += `${i + 1}. 📝 <b>${t.title}</b> (${courseName})\n🕒 Jam: ${time}\n🎯 Prioritas: ${t.priority}\n\n`;
         });
         await sendTelegramMessage(chatId, msg);
@@ -234,7 +235,7 @@ export async function POST(request: NextRequest) {
         let msg = `⏰ <b>Deadline Terdekat 7 Hari (${tasks.length}):</b>\n\n`;
         tasks.forEach((t: any, i: number) => {
           const courseName = t.courses?.name || "Tanpa Mata Kuliah";
-          const dateStr = t.deadline ? new Date(t.deadline).toLocaleDateString("id-ID", { day: "numeric", month: "short" }) : "-";
+          const dateStr = t.deadline ? new Date(t.deadline).toLocaleDateString("id-ID", { day: "numeric", month: "short", timeZone: "Asia/Jakarta" }) : "-";
           msg += `${i + 1}. 📝 <b>${t.title}</b> (${courseName})\n📅 Tgl: ${dateStr}\n🎯 Prioritas: ${t.priority}\n\n`;
         });
         await sendTelegramMessage(chatId, msg);
@@ -256,7 +257,7 @@ export async function POST(request: NextRequest) {
         let msg = `📋 <b>Daftar Tugas Aktif (${tasks.length}):</b>\n\n`;
         tasks.forEach((t: any, i: number) => {
           const courseName = t.courses?.name || "Tanpa MK";
-          const dlText = t.deadline ? new Date(t.deadline).toLocaleDateString("id-ID", { day: "numeric", month: "short" }) : "Tidak ada";
+          const dlText = t.deadline ? new Date(t.deadline).toLocaleDateString("id-ID", { day: "numeric", month: "short", timeZone: "Asia/Jakarta" }) : "Tidak ada";
           msg += `${i + 1}. 📝 <b>${t.title}</b>\n📚 MK: ${courseName} | 📅 DL: ${dlText} | Status: <code>${t.status}</code>\n\n`;
         });
         await sendTelegramMessage(chatId, msg);
@@ -367,7 +368,7 @@ export async function POST(request: NextRequest) {
       course_id: courseId,
       title: extracted.title,
       description: extracted.description || null,
-      deadline: extracted.deadline || null,
+      deadline: formatDeadlineForDb(extracted.deadline),
       priority: (extracted.priority as any) || "medium",
       status: "pending",
       type: (extracted.type as any) || "tugas",
@@ -383,7 +384,7 @@ export async function POST(request: NextRequest) {
 
   const deadlineText = assignment.deadline
     ? `📅 Deadline: ${new Date(assignment.deadline).toLocaleDateString("id-ID", {
-        weekday: "long", year: "numeric", month: "long", day: "numeric",
+        weekday: "long", year: "numeric", month: "long", day: "numeric", timeZone: "Asia/Jakarta"
       })}`
     : "📅 Deadline: Tidak ditentukan";
 

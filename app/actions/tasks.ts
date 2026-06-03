@@ -3,6 +3,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { TaskPriority, TaskStatus, TaskType } from "@/types";
+import { formatDeadlineForDb } from "@/utils/date";
 
 export async function createTask(data: {
   title: string;
@@ -20,8 +21,10 @@ export async function createTask(data: {
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
 
+  const formattedDeadline = formatDeadlineForDb(data.deadline);
+
   const { error } = await supabase.from("assignments").insert([
-    { ...data, user_id: user.id },
+    { ...data, deadline: formattedDeadline, user_id: user.id },
   ]);
   if (error) throw new Error(error.message);
   revalidatePath("/dashboard");
@@ -46,9 +49,14 @@ export async function updateTask(
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
 
+  const updateData = { ...data };
+  if ("deadline" in updateData) {
+    updateData.deadline = formatDeadlineForDb(updateData.deadline) || undefined;
+  }
+
   const { error } = await supabase
     .from("assignments")
-    .update(data)
+    .update(updateData)
     .eq("id", id)
     .eq("user_id", user.id);
   if (error) throw new Error(error.message);
@@ -76,3 +84,4 @@ export async function deleteTask(id: string) {
 export async function updateTaskStatus(id: string, status: TaskStatus) {
   return updateTask(id, { status });
 }
+

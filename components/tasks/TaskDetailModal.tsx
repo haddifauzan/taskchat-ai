@@ -39,9 +39,18 @@ export default function TaskDetailModal({
   const formatDatetimeLocal = (isoString: string | null) => {
     if (!isoString) return "";
     const date = new Date(isoString);
-    const tzOffset = date.getTimezoneOffset() * 60000;
-    const localISOTime = new Date(date.getTime() - tzOffset).toISOString().slice(0, 16);
-    return localISOTime;
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Jakarta",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+    const parts = formatter.formatToParts(date);
+    const partMap = Object.fromEntries(parts.map((p) => [p.type, p.value]));
+    return `${partMap.year}-${partMap.month}-${partMap.day}T${partMap.hour}:${partMap.minute}`;
   };
 
   const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -243,7 +252,7 @@ export default function TaskDetailModal({
               <div>
                 <p className="text-[10px] font-bold text-[var(--muted-light)] uppercase tracking-wider mb-0.5">Deadline</p>
                 <span className="font-semibold text-[var(--foreground)]">
-                  {dl ? dl.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "Tidak ada"}
+                  {dl ? dl.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" }) : "Tidak ada"}
                 </span>
               </div>
             </div>
@@ -270,7 +279,7 @@ export default function TaskDetailModal({
 
             {/* Created At info */}
             <div className="text-[10px] text-[var(--muted-light)] text-right">
-              Dibuat pada: {new Date(task.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+              Dibuat pada: {new Date(task.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" })}
             </div>
           </div>
         )}

@@ -6,7 +6,12 @@ import AddTaskModal from "@/components/tasks/AddTaskModal";
 import { redirect } from "next/navigation";
 
 function formatGreeting(name: string) {
-  const hour = new Date().getHours();
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Jakarta",
+    hour: "numeric",
+    hour12: false,
+  });
+  const hour = parseInt(formatter.format(new Date()), 10);
   if (hour < 12) return `Good Morning, ${name}! 👋`;
   if (hour < 18) return `Good Afternoon, ${name}! 👋`;
   return `Good Evening, ${name}! 👋`;
@@ -18,6 +23,7 @@ function formatDate(date: Date) {
     day: "numeric",
     month: "long",
     year: "numeric",
+    timeZone: "Asia/Jakarta",
   });
 }
 
@@ -31,6 +37,7 @@ function formatDeadlineTime(deadline: string | null) {
   return new Date(deadline).toLocaleTimeString("en-US", {
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "Asia/Jakarta",
   });
 }
 
@@ -404,7 +411,7 @@ export default async function DashboardPage() {
                           {diffDays === 0 ? "Hari ini!" : diffDays === 1 ? "Tomorrow" : `${diffDays} hari lagi`}
                         </p>
                         <p className="text-[10px] text-[#9ca3af]">
-                          {dl.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
+                          {dl.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" })}
                         </p>
                       </div>
                     </div>

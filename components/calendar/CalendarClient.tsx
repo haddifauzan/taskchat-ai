@@ -39,6 +39,7 @@ export default function CalendarClient({ initialAssignments }: CalendarClientPro
   const monthLabel = new Date(currentYear, currentMonth, 1).toLocaleDateString("id-ID", {
     month: "long",
     year: "numeric",
+    timeZone: "Asia/Jakarta",
   });
 
   const dayNames = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
@@ -56,14 +57,16 @@ export default function CalendarClient({ initialAssignments }: CalendarClientPro
   const currentMonthAssignments = initialAssignments.filter((a) => {
     if (!a.deadline) return false;
     const d = new Date(a.deadline);
-    return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+    const y = parseInt(new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Jakarta", year: "numeric" }).format(d), 10);
+    const m = parseInt(new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Jakarta", month: "numeric" }).format(d), 10) - 1;
+    return y === currentYear && m === currentMonth;
   });
 
   // Group by day for indicators
   const tasksByDay: Record<number, any[]> = {};
   for (const a of currentMonthAssignments) {
     if (a.deadline) {
-      const day = new Date(a.deadline).getDate();
+      const day = parseInt(new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Jakarta", day: "numeric" }).format(new Date(a.deadline)), 10);
       if (!tasksByDay[day]) tasksByDay[day] = [];
       tasksByDay[day].push(a);
     }
@@ -249,7 +252,7 @@ export default function CalendarClient({ initialAssignments }: CalendarClientPro
                       <div className="flex items-center justify-between text-[11px] text-[#9ca3af] border-t border-[#f0eef8]/80 pt-2.5">
                         <span className="flex items-center gap-1">
                           <i className="fa-solid fa-clock"></i>
-                          {dl.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB
+                          {dl.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" })} WIB
                         </span>
                         <span className="flex items-center gap-1 font-semibold capitalize text-[#6366f1]">
                           <i className="fa-solid fa-circle-info"></i>
@@ -296,9 +299,11 @@ export default function CalendarClient({ initialAssignments }: CalendarClientPro
                         color: course?.color || "#6366f1",
                       }}
                     >
-                      <span className="text-xs font-extrabold">{dl.getDate()}</span>
+                      <span className="text-xs font-extrabold">
+                        {new Intl.DateTimeFormat("id-ID", { timeZone: "Asia/Jakarta", day: "numeric" }).format(dl)}
+                      </span>
                       <span className="uppercase text-[8px]">
-                        {dl.toLocaleDateString("id-ID", { month: "short" })}
+                        {dl.toLocaleDateString("id-ID", { month: "short", timeZone: "Asia/Jakarta" })}
                       </span>
                     </div>
 
