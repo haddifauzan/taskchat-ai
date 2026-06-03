@@ -69,7 +69,7 @@ export default function Sidebar({ userName, userEmail, userAvatar, isOpen, onClo
       <aside
         className={`
           fixed inset-y-0 left-0 z-50
-          lg:static lg:inset-auto lg:z-auto
+          lg:sticky lg:top-0 lg:z-20
           w-[240px] shrink-0 flex flex-col h-screen
           bg-[var(--sidebar-bg)] border-r border-[var(--sidebar-border)]
           shadow-xl lg:shadow-none
