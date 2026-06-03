@@ -11,32 +11,57 @@ function createAdminClient() {
 }
 
 // AI extraction prompt (shared across providers)
-const EXTRACTION_PROMPT = `Kamu adalah asisten AI yang mengekstrak informasi tugas dari pesan mahasiswa Indonesia.
+const EXTRACTION_PROMPT = `Kamu adalah asisten AI untuk aplikasi manajemen tugas kuliah (TaskChat AI) untuk mahasiswa Indonesia.
+Tugasmu adalah menganalisis pesan dari mahasiswa dalam bahasa Indonesia dan menentukan aksi apa yang ingin mereka lakukan: membuat tugas baru ("create"), memperbarui tugas ("update"), menghapus tugas ("delete"), atau mendeteksi jika pesan tidak valid/tidak sesuai perintah ("invalid").
 
-Ekstrak informasi berikut dari pesan:
-- title: judul singkat tugas (wajib)
-- course: nama mata kuliah yang disebutkan (atau null jika tidak ada)
-- deadline: tanggal deadline dalam format ISO 8601 (atau null jika tidak disebutkan)
-- description: deskripsi singkat tugas
-- type: kategori tugas ("tugas", "quiz", "tubes", "presentasi", "praktikum") - pilih yang paling sesuai
-- priority: prioritas ("high" jika deadline < 3 hari, "medium" jika < 7 hari, "low" jika > 7 hari atau tidak ada deadline)
+Tentukan salah satu dari aksi berikut:
+1. "create" (Membuat tugas baru)
+2. "update" (Memperbarui informasi tugas yang sudah ada seperti nama, deskripsi, deadline, tipe, prioritas, atau status)
+3. "delete" (Menghapus tugas yang sudah ada)
+4. "invalid" (Pesan tidak dipahami, tidak sesuai perintah, atau instruksi tidak lengkap/bias)
+
+Ketentuan Ekstraksi Output JSON:
+- "action": Wajib diisi salah satu dari: "create", "update", "delete", "invalid".
+- "search_query": Wajib diisi untuk aksi "update" dan "delete". Tentukan nama tugas, mata kuliah, atau kata kunci tugas lama yang ingin dicari (misal: jika user berkata "ubah deadline tugas kalkulus ke besok", maka search_query adalah "kalkulus"). Jangan sertakan kata kerja seperti "hapus", "ubah", "selesaikan", "selesai" di dalam search_query.
+- "task_data": Wajib diisi untuk aksi "create" dan (jika ada perubahan) untuk "update". Hanya isi field yang terdeteksi secara eksplisit:
+  * "title": Judul/nama tugas baru (atau judul baru jika diupdate)
+  * "course": Nama mata kuliah yang disebutkan
+  * "description": Deskripsi singkat tugas
+  * "deadline": Tanggal deadline dalam format ISO 8601 (YYYY-MM-DD atau YYYY-MM-DDTHH:mm:ss). Jika berupa waktu relatif seperti "besok", "lusa", "jumat depan", hitung berdasarkan tanggal Hari Ini yang diberikan. Jika tidak disebutkan, isi null.
+  * "type": Kategori tugas ("tugas", "quiz", "tubes", "presentasi", "praktikum")
+  * "priority": Prioritas tugas ("high", "medium", "low").
+    - Jika membuat tugas baru: otomatis "high" jika deadline < 3 hari, "medium" jika < 7 hari, "low" jika > 7 hari atau tidak ada deadline.
+    - Jika update: isi jika diminta secara eksplisit (misal: "ubah prioritas tugas kalkulus jadi high").
+  * "status": Status tugas ("pending", "in_progress", "completed").
+    - Jika user berkata "selesai", "sudah dikerjakan", "telah beres", "tandai selesai" untuk suatu tugas, maka status menjadi "completed".
+    - Jika user berkata "sedang dikerjakan", "mulai kerjakan", "in progress", maka status menjadi "in_progress".
+    - Jika user berkata "belum dikerjakan", "pending", maka status menjadi "pending".
+- "feedback_message": Wajib diisi jika action adalah "invalid". Berikan pesan feedback yang ramah, sopan, dan terstruktur dalam bahasa Indonesia untuk memandu user tentang format perintah yang benar (menambah, mengubah, menghapus tugas) dengan contoh konkret.
 
 Jawab HANYA dengan JSON valid, tanpa markdown atau penjelasan tambahan.`;
 
-async function extractTaskFromMessage(message: string): Promise<{
-  title: string;
-  course?: string;
-  deadline?: string;
-  description?: string;
-  type: string;
-  priority: string;
-} | null> {
+interface ExtractedTaskAction {
+  action: "create" | "update" | "delete" | "invalid";
+  search_query?: string;
+  task_data?: {
+    title?: string;
+    course?: string;
+    deadline?: string | null;
+    description?: string | null;
+    type?: "tugas" | "quiz" | "tubes" | "presentasi" | "praktikum";
+    priority?: "high" | "medium" | "low";
+    status?: "pending" | "in_progress" | "completed";
+  };
+  feedback_message?: string;
+}
+
+async function extractTaskFromMessage(message: string): Promise<ExtractedTaskAction | null> {
   const groqKey = process.env.GROQ_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY;
 
   const today = new Date().toISOString().split("T")[0];
 
-  const userPrompt = `Hari ini: ${today}\n\nPesan mahasiswa:\n"${message}"\n\nEkstrak informasi tugas dari pesan di atas.`;
+  const userPrompt = `Hari ini: ${today}\n\nPesan mahasiswa:\n"${message}"\n\nEkstrak aksi dan informasi tugas dari pesan di atas sesuai instruksi sistem.`;
 
   // Try Groq first
   if (groqKey) {
@@ -54,7 +79,7 @@ async function extractTaskFromMessage(message: string): Promise<{
             { role: "user", content: userPrompt },
           ],
           temperature: 0.1,
-          max_tokens: 300,
+          max_tokens: 400,
           response_format: { type: "json_object" },
         }),
       });
@@ -86,7 +111,7 @@ async function extractTaskFromMessage(message: string): Promise<{
             ],
             generationConfig: {
               temperature: 0.1,
-              maxOutputTokens: 300,
+              maxOutputTokens: 400,
               responseMimeType: "application/json",
             },
           }),
@@ -154,16 +179,20 @@ export async function POST(request: NextRequest) {
     await sendTelegramMessage(
       chatId,
       `👋 Halo! Saya <b>TaskChat AI Bot</b>.\n\n` +
-      `Bot ini membantu kamu mencatat tugas kuliah langsung via Telegram. Cukup kirim chat biasa seperti:\n` +
-      `<i>"Tugas Pemrograman Web membuat website portfolio deadline Jumat depan"</i>\n\n` +
-      `<b>Daftar Perintah:</b>\n` +
+      `Saya bisa membantu kamu mengelola tugas kuliah langsung via Telegram menggunakan percakapan biasa.\n\n` +
+      `💡 <b>Contoh Penggunaan AI:</b>\n` +
+      `• <b>Tambah Tugas:</b> <i>"Tugas Fisika membuat resume bab 2 deadline senin depan"</i>\n` +
+      `• <b>Ubah Detail Tugas:</b> <i>"Ubah deadline tugas membuat resume Fisika jadi besok"</i>\n` +
+      `• <b>Ubah Status Tugas:</b> <i>"Tandai tugas resume Fisika sedang dikerjakan"</i> atau <i>"Tugas resume Fisika sudah selesai"</i>\n` +
+      `• <b>Hapus Tugas:</b> <i>"Hapus tugas resume Fisika"</i>\n\n` +
+      `📋 <b>Daftar Perintah Bot:</b>\n` +
       `/today - Tugas hari ini\n` +
       `/upcoming - Deadline terdekat (7 hari)\n` +
-      `/tasks - Semua tugas belum selesai\n` +
+      `/tasks - Semua tugas aktif (belum selesai)\n` +
       `/courses - Daftar mata kuliah\n` +
-      `/stats - Statistik tugas\n` +
-      `/help - Bantuan penggunaan\n\n` +
-      `Login di <a href="${appUrl}">TaskChat AI</a> untuk melihat dashboard.`
+      `/stats - Statistik tugas kuliahmu\n` +
+      `/help - Tampilkan bantuan ini\n\n` +
+      `Lihat visualisasi dashboard & kelola tugas lengkap di: <a href="${appUrl}">TaskChat AI Dashboard</a>`
     );
     return Response.json({ ok: true });
   }
@@ -328,70 +357,319 @@ export async function POST(request: NextRequest) {
 
   const extracted = await extractTaskFromMessage(text);
 
-  if (!extracted || !extracted.title) {
+  if (!extracted) {
     await sendTelegramMessage(
       chatId,
-      "❌ Maaf, saya tidak bisa memahami pesanmu. Coba tulis pesan dengan lebih jelas, contoh:\n\"Tugas Pemrograman Web bikin website portfolio deadline Jumat\""
+      "❌ Maaf, saya sedang tidak bisa memproses pesanmu karena ada masalah sistem. Coba beberapa saat lagi."
     );
     return Response.json({ ok: true });
   }
 
-  // Find or create course
-  let courseId: string | null = null;
-  if (extracted.course) {
-    const { data: existingCourse } = await supabase
-      .from("courses")
-      .select("id")
-      .eq("user_id", connection.user_id)
-      .ilike("name", extracted.course)
-      .single();
-
-    if (existingCourse) {
-      courseId = existingCourse.id;
-    } else {
-      const colors = ["#6366f1", "#22c55e", "#f59e0b", "#ef4444", "#3b82f6", "#a855f7"];
-      const color = colors[Math.floor(Math.random() * colors.length)];
-      const { data: newCourse } = await supabase
-        .from("courses")
-        .insert([{ user_id: connection.user_id, name: extracted.course, color }])
-        .select("id")
-        .single();
-      courseId = newCourse?.id || null;
-    }
-  }
-
-  // Save assignment
-  const { data: assignment, error } = await supabase
-    .from("assignments")
-    .insert([{
-      user_id: connection.user_id,
-      course_id: courseId,
-      title: extracted.title,
-      description: extracted.description || null,
-      deadline: formatDeadlineForDb(extracted.deadline),
-      priority: (extracted.priority as any) || "medium",
-      status: "pending",
-      type: (extracted.type as any) || "tugas",
-      source_text: text,
-    }])
-    .select()
-    .single();
-
-  if (error) {
-    await sendTelegramMessage(chatId, "❌ Gagal menyimpan tugas. Coba lagi.");
+  if (extracted.action === "invalid") {
+    const feedback = extracted.feedback_message || 
+      "❌ Maaf, saya tidak memahami pesanmu. Coba tulis pesan dengan lebih jelas.\n\n" +
+      "Contoh:\n" +
+      "• <i>\"Tugas Pemrograman Web deadline besok\"</i>\n" +
+      "• <i>\"Ubah status tugas web ke selesai\"</i>\n" +
+      "• <i>\"Hapus tugas kalkulus\"</i>";
+    await sendTelegramMessage(chatId, feedback);
     return Response.json({ ok: true });
   }
 
-  const deadlineText = assignment.deadline
-    ? `📅 Deadline: ${new Date(assignment.deadline).toLocaleDateString("id-ID", {
-        weekday: "long", year: "numeric", month: "long", day: "numeric", timeZone: "Asia/Jakarta"
-      })}`
-    : "📅 Deadline: Tidak ditentukan";
+  if (extracted.action === "create") {
+    const taskData = extracted.task_data;
+    if (!taskData || !taskData.title) {
+      await sendTelegramMessage(
+        chatId,
+        "❌ Nama/judul tugas wajib disertakan untuk menambahkan tugas baru. Contoh:\n<i>\"Tugas Fisika membuat resume\"</i>"
+      );
+      return Response.json({ ok: true });
+    }
 
-  await sendTelegramMessage(
-    chatId,
-    `✅ <b>Tugas berhasil disimpan!</b>\n\n📝 <b>${assignment.title}</b>\n📚 Mata Kuliah: ${extracted.course || "Tidak ditentukan"}\n${deadlineText}\n🎯 Prioritas: ${assignment.priority}\n\nLihat di dashboard: <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard">${process.env.NEXT_PUBLIC_APP_URL}/dashboard</a>`
-  );
+    // Find or create course
+    let courseId: string | null = null;
+    if (taskData.course) {
+      const { data: existingCourse } = await supabase
+        .from("courses")
+        .select("id")
+        .eq("user_id", connection.user_id)
+        .ilike("name", taskData.course)
+        .single();
 
-  return Response.json({ ok: true });
+      if (existingCourse) {
+        courseId = existingCourse.id;
+      } else {
+        const colors = ["#6366f1", "#22c55e", "#f59e0b", "#ef4444", "#3b82f6", "#a855f7"];
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        const { data: newCourse } = await supabase
+          .from("courses")
+          .insert([{ user_id: connection.user_id, name: taskData.course, color }])
+          .select("id")
+          .single();
+        courseId = newCourse?.id || null;
+      }
+    }
+
+    // Save assignment
+    const { data: assignment, error } = await supabase
+      .from("assignments")
+      .insert([{
+        user_id: connection.user_id,
+        course_id: courseId,
+        title: taskData.title,
+        description: taskData.description || null,
+        deadline: formatDeadlineForDb(taskData.deadline),
+        priority: taskData.priority || "medium",
+        status: taskData.status || "pending",
+        type: taskData.type || "tugas",
+        source_text: text,
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      await sendTelegramMessage(chatId, "❌ Gagal menyimpan tugas. Coba lagi.");
+      return Response.json({ ok: true });
+    }
+
+    const deadlineText = assignment.deadline
+      ? `📅 Deadline: ${new Date(assignment.deadline).toLocaleDateString("id-ID", {
+          weekday: "long", year: "numeric", month: "long", day: "numeric", timeZone: "Asia/Jakarta"
+        })}`
+      : "📅 Deadline: Tidak ditentukan";
+
+    await sendTelegramMessage(
+      chatId,
+      `✅ <b>Tugas berhasil disimpan!</b>\n\n` +
+      `📝 <b>${assignment.title}</b>\n` +
+      `📚 Mata Kuliah: ${taskData.course || "Tidak ditentukan"}\n` +
+      `${deadlineText}\n` +
+      `🎯 Prioritas: ${assignment.priority}\n\n` +
+      `Lihat di dashboard: <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard">${process.env.NEXT_PUBLIC_APP_URL}/dashboard</a>`
+    );
+
+    return Response.json({ ok: true });
+  }
+
+  if (extracted.action === "update") {
+    const searchQuery = extracted.search_query?.trim();
+    if (!searchQuery) {
+      await sendTelegramMessage(
+        chatId,
+        "❌ Nama tugas yang ingin diubah tidak jelas. Silakan kirim ulang perintah dengan nama tugas yang spesifik."
+      );
+      return Response.json({ ok: true });
+    }
+
+    // Fetch assignments to match
+    const { data: tasks, error: fetchError } = await supabase
+      .from("assignments")
+      .select("*, courses(name)")
+      .eq("user_id", connection.user_id);
+
+    if (fetchError || !tasks) {
+      await sendTelegramMessage(chatId, "❌ Gagal mencari tugas untuk diupdate. Coba lagi nanti.");
+      return Response.json({ ok: true });
+    }
+
+    const searchQueryLower = searchQuery.toLowerCase();
+    const matchedTasks = tasks.filter((t: any) => 
+      t.title.toLowerCase().includes(searchQueryLower) || 
+      (t.courses?.name && t.courses.name.toLowerCase().includes(searchQueryLower))
+    );
+
+    let targetTask = null;
+    if (matchedTasks.length === 0) {
+      await sendTelegramMessage(
+        chatId,
+        `❌ Tugas dengan kata kunci "<b>${searchQuery}</b>" tidak ditemukan.\n\nKetik /tasks untuk melihat daftar tugas aktif Anda.`
+      );
+      return Response.json({ ok: true });
+    } else if (matchedTasks.length === 1) {
+      targetTask = matchedTasks[0];
+    } else {
+      // Multiple matches
+      const activeMatched = matchedTasks.filter((t: any) => t.status !== "completed");
+      if (activeMatched.length === 1) {
+        targetTask = activeMatched[0];
+      } else {
+        let msg = `🔍 <b>Ditemukan beberapa tugas yang cocok dengan "${searchQuery}":</b>\n\n`;
+        const listToDisplay = activeMatched.length > 0 ? activeMatched : matchedTasks;
+        listToDisplay.slice(0, 5).forEach((t: any, i: number) => {
+          const courseName = t.courses?.name || "Tanpa Mata Kuliah";
+          const statusText = t.status === "completed" ? "✅ Selesai" : t.status === "in_progress" ? "🔄 Sedang Dikerjakan" : "⏳ Pending";
+          msg += `${i + 1}. 📝 <b>${t.title}</b> (${courseName}) - <i>${statusText}</i>\n`;
+        });
+        msg += `\nSilakan kirim ulang perintah dengan nama tugas yang lebih spesifik.`;
+        await sendTelegramMessage(chatId, msg);
+        return Response.json({ ok: true });
+      }
+    }
+
+    const taskData = extracted.task_data || {};
+    const updates: any = {};
+    if (taskData.title !== undefined) updates.title = taskData.title;
+    if (taskData.description !== undefined) updates.description = taskData.description;
+    if (taskData.deadline !== undefined) updates.deadline = formatDeadlineForDb(taskData.deadline);
+    if (taskData.priority !== undefined) updates.priority = taskData.priority;
+    if (taskData.status !== undefined) updates.status = taskData.status;
+    if (taskData.type !== undefined) updates.type = taskData.type;
+
+    if (taskData.course !== undefined) {
+      if (taskData.course === null) {
+        updates.course_id = null;
+      } else {
+        // Find or create course
+        let courseId: string | null = null;
+        const { data: existingCourse } = await supabase
+          .from("courses")
+          .select("id")
+          .eq("user_id", connection.user_id)
+          .ilike("name", taskData.course)
+          .single();
+
+        if (existingCourse) {
+          courseId = existingCourse.id;
+        } else {
+          const colors = ["#6366f1", "#22c55e", "#f59e0b", "#ef4444", "#3b82f6", "#a855f7"];
+          const color = colors[Math.floor(Math.random() * colors.length)];
+          const { data: newCourse } = await supabase
+            .from("courses")
+            .insert([{ user_id: connection.user_id, name: taskData.course, color }])
+            .select("id")
+            .single();
+          courseId = newCourse?.id || null;
+        }
+        updates.course_id = courseId;
+      }
+    }
+
+    if (Object.keys(updates).length === 0) {
+      await sendTelegramMessage(
+        chatId,
+        `🔍 Tugas <b>"${targetTask.title}"</b> ditemukan, tetapi saya tidak mendeteksi informasi baru untuk diperbarui.\n\nContoh:\n• <i>\"Ubah deadline tugas ${targetTask.title} jadi besok\"</i>\n• <i>\"Ubah status tugas ${targetTask.title} menjadi selesai\"</i>`
+      );
+      return Response.json({ ok: true });
+    }
+
+    const { data: updatedAssignment, error: updateError } = await supabase
+      .from("assignments")
+      .update(updates)
+      .eq("id", targetTask.id)
+      .select("*, courses(name)")
+      .single();
+
+    if (updateError) {
+      await sendTelegramMessage(chatId, "❌ Gagal mengupdate tugas. Silakan coba lagi.");
+      return Response.json({ ok: true });
+    }
+
+    let successMsg = `✅ <b>Tugas berhasil diperbarui!</b>\n\n`;
+    successMsg += `📝 <b>${updatedAssignment.title}</b>\n`;
+
+    if (updates.title) successMsg += `• Judul diubah dari "<i>${targetTask.title}</i>" menjadi "<i>${updatedAssignment.title}</i>"\n`;
+    if (updates.course_id !== undefined) {
+      const oldCourse = targetTask.courses?.name || "Tidak ditentukan";
+      const newCourse = updatedAssignment.courses?.name || "Tidak ditentukan";
+      successMsg += `• Mata Kuliah diubah dari "<i>${oldCourse}</i>" menjadi "<i>${newCourse}</i>"\n`;
+    }
+    if (updates.deadline !== undefined) {
+      const oldDL = targetTask.deadline 
+        ? new Date(targetTask.deadline).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Jakarta" })
+        : "Tidak ditentukan";
+      const newDL = updatedAssignment.deadline
+        ? new Date(updatedAssignment.deadline).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Jakarta" })
+        : "Tidak ditentukan";
+      successMsg += `• Deadline diubah dari <i>${oldDL}</i> menjadi <i>${newDL}</i>\n`;
+    }
+    if (updates.priority) {
+      successMsg += `• Prioritas diubah dari <code>${targetTask.priority}</code> menjadi <code>${updatedAssignment.priority}</code>\n`;
+    }
+    if (updates.status) {
+      const statusLabels: Record<string, string> = { pending: "Pending", in_progress: "In Progress", completed: "Selesai" };
+      successMsg += `• Status diubah dari <code>${statusLabels[targetTask.status]}</code> menjadi <code>${statusLabels[updatedAssignment.status]}</code>\n`;
+    }
+    if (updates.type) {
+      successMsg += `• Tipe diubah dari <code>${targetTask.type}</code> menjadi <code>${updatedAssignment.type}</code>\n`;
+    }
+    if (updates.description !== undefined) {
+      successMsg += `• Deskripsi diperbarui\n`;
+    }
+
+    successMsg += `\nLihat di dashboard: <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard">${process.env.NEXT_PUBLIC_APP_URL}/dashboard</a>`;
+    await sendTelegramMessage(chatId, successMsg);
+    return Response.json({ ok: true });
+  }
+
+  if (extracted.action === "delete") {
+    const searchQuery = extracted.search_query?.trim();
+    if (!searchQuery) {
+      await sendTelegramMessage(
+        chatId,
+        "❌ Nama tugas yang ingin dihapus tidak jelas. Silakan kirim ulang perintah dengan nama tugas yang spesifik."
+      );
+      return Response.json({ ok: true });
+    }
+
+    const { data: tasks, error: fetchError } = await supabase
+      .from("assignments")
+      .select("*, courses(name)")
+      .eq("user_id", connection.user_id);
+
+    if (fetchError || !tasks) {
+      await sendTelegramMessage(chatId, "❌ Gagal mencari tugas untuk dihapus. Coba lagi nanti.");
+      return Response.json({ ok: true });
+    }
+
+    const searchQueryLower = searchQuery.toLowerCase();
+    const matchedTasks = tasks.filter((t: any) => 
+      t.title.toLowerCase().includes(searchQueryLower) || 
+      (t.courses?.name && t.courses.name.toLowerCase().includes(searchQueryLower))
+    );
+
+    let targetTask = null;
+    if (matchedTasks.length === 0) {
+      await sendTelegramMessage(
+        chatId,
+        `❌ Tugas dengan kata kunci "<b>${searchQuery}</b>" tidak ditemukan.\n\nKetik /tasks untuk melihat daftar tugas aktif Anda.`
+      );
+      return Response.json({ ok: true });
+    } else if (matchedTasks.length === 1) {
+      targetTask = matchedTasks[0];
+    } else {
+      // Multiple matches
+      const activeMatched = matchedTasks.filter((t: any) => t.status !== "completed");
+      if (activeMatched.length === 1) {
+        targetTask = activeMatched[0];
+      } else {
+        let msg = `🔍 <b>Ditemukan beberapa tugas yang cocok dengan "${searchQuery}":</b>\n\n`;
+        const listToDisplay = activeMatched.length > 0 ? activeMatched : matchedTasks;
+        listToDisplay.slice(0, 5).forEach((t: any, i: number) => {
+          const courseName = t.courses?.name || "Tanpa Mata Kuliah";
+          const statusText = t.status === "completed" ? "✅ Selesai" : t.status === "in_progress" ? "🔄 Sedang Dikerjakan" : "⏳ Pending";
+          msg += `${i + 1}. 📝 <b>${t.title}</b> (${courseName}) - <i>${statusText}</i>\n`;
+        });
+        msg += `\nSilakan kirim ulang perintah hapus dengan nama tugas yang lebih spesifik.`;
+        await sendTelegramMessage(chatId, msg);
+        return Response.json({ ok: true });
+      }
+    }
+
+    const { error: deleteError } = await supabase
+      .from("assignments")
+      .delete()
+      .eq("id", targetTask.id)
+      .eq("user_id", connection.user_id);
+
+    if (deleteError) {
+      await sendTelegramMessage(chatId, "❌ Gagal menghapus tugas. Silakan coba lagi.");
+      return Response.json({ ok: true });
+    }
+
+    await sendTelegramMessage(
+      chatId,
+      `🗑️ <b>Tugas berhasil dihapus!</b>\n\n📝 <b>${targetTask.title}</b> (${targetTask.courses?.name || "Tanpa Mata Kuliah"})\n\nTugas tersebut telah dihapus secara permanen dari database.`
+    );
+    return Response.json({ ok: true });
+  }
 }

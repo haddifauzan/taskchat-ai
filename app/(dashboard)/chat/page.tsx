@@ -32,16 +32,20 @@ export default async function ChatPage() {
           <div className="grid grid-cols-1 gap-3 text-left">
             {[
               {
-                msg: "\"Tugas AI bikin chatbot deadline minggu depan\"",
-                desc: "AI mendeteksi mata kuliah, judul, dan deadline otomatis",
+                msg: "\"Tugas AI membuat chatbot deadline senin depan\"",
+                desc: "Tambah tugas baru: mendeteksi mata kuliah, judul, dan deadline secara otomatis",
               },
               {
-                msg: "\"Quiz Basis Data besok jam 10 pagi\"",
-                desc: "AI mendeteksi tipe quiz dan deadline waktu spesifik",
+                msg: "\"Ubah deadline tugas membuat chatbot AI jadi besok\"",
+                desc: "Ubah detail tugas: memperbarui deadline, judul, prioritas, tipe, atau deskripsi",
               },
               {
-                msg: "\"Presentasi Pemrograman Web dikumpul tanggal 15\"",
-                desc: "AI mendeteksi tipe presentasi dan tanggal deadline",
+                msg: "\"Tugas membuat chatbot AI sudah selesai\"",
+                desc: "Ubah status tugas: mengubah status ke completed (selesai) atau in_progress (sedang dikerjakan)",
+              },
+              {
+                msg: "\"Hapus tugas membuat chatbot AI\"",
+                desc: "Hapus tugas: menghapus tugas tertentu dari daftar secara permanen",
               },
             ].map((ex, i) => (
               <div key={i} className="p-4 bg-[#f8f7ff] border border-[#e0dff8] rounded-xl">
