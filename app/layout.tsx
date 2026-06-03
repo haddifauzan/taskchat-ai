@@ -55,6 +55,7 @@ export default function RootLayout({
   return (
     <html lang="id" className={inter.variable}>
       <head>
+        <link rel="icon" href="/assets/taskchat-ai-logo.png" />
         <link
           rel="stylesheet"
           href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"

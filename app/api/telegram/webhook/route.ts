@@ -23,10 +23,10 @@ Tentukan salah satu dari aksi berikut:
 Ketentuan Ekstraksi Output JSON:
 - "action": Wajib diisi salah satu dari: "create", "update", "delete", "invalid".
 - "search_query": Wajib diisi untuk aksi "update" dan "delete". Tentukan nama tugas, mata kuliah, atau kata kunci tugas lama yang ingin dicari (misal: jika user berkata "ubah deadline tugas kalkulus ke besok", maka search_query adalah "kalkulus"). Jangan sertakan kata kerja seperti "hapus", "ubah", "selesaikan", "selesai" di dalam search_query.
-- "task_data": Wajib diisi untuk aksi "create" dan (jika ada perubahan) untuk "update". Hanya isi field yang terdeteksi secara eksplisit:
-  * "title": Judul/nama tugas baru (atau judul baru jika diupdate)
-  * "course": Nama mata kuliah yang disebutkan
-  * "description": Deskripsi singkat tugas
+- "task_data": Wajib diisi untuk aksi "create" dan (jika ada perubahan) untuk "update". Isi field yang terdeteksi atau buat nilai yang relevan sesuai panduan berikut:
+  * "title": Judul/nama tugas baru yang singkat dan padat (misal: "Membuat Resume Bab 2"). Jangan terlalu panjang.
+  * "course": Nama mata kuliah yang disebutkan.
+  * "description": Deskripsi singkat atau rincian tugas. Jika pengguna menyertakan rincian tambahan (seperti "tentang hukum newton", "tulis tangan di kertas A4"), masukkan ke sini. Jika tidak ada rincian tambahan, buatlah ringkasan/deskripsi singkat otomatis berdasarkan judul tugas dan mata kuliahnya (misal: "Tugas membuat resume bab 2 untuk mata kuliah Fisika") agar kolom deskripsi tidak kosong.
   * "deadline": Tanggal deadline dalam format ISO 8601 (YYYY-MM-DD atau YYYY-MM-DDTHH:mm:ss). Jika berupa waktu relatif seperti "besok", "lusa", "jumat depan", hitung berdasarkan tanggal Hari Ini yang diberikan. Jika tidak disebutkan, isi null.
   * "type": Kategori tugas ("tugas", "quiz", "tubes", "presentasi", "praktikum")
   * "priority": Prioritas tugas ("high", "medium", "low").
