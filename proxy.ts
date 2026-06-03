@@ -8,11 +8,11 @@ export async function proxy(request: NextRequest) {
   const publicPaths = ["/login", "/api/auth"];
   const isPublic = publicPaths.some((p) => pathname.startsWith(p));
 
-  if (isPublic) return NextResponse.next({ request });
+  if (isPublic) return NextResponse.next();
 
   // Telegram webhook is public (secured by secret header)
   if (pathname.startsWith("/api/telegram/webhook")) {
-    return NextResponse.next({ request });
+    return NextResponse.next();
   }
 
   return await updateSession(request);
