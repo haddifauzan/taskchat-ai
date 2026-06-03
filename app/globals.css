@@ -134,6 +134,43 @@ body {
 .animate-slideIn { animation: slideIn 0.3s ease forwards; }
 .animate-pulse-ring { animation: pulse-ring 2s infinite; }
 
+/* Shimmer skeleton */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--card-border) 25%,
+    var(--sidebar-border) 50%,
+    var(--card-border) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s infinite;
+  border-radius: 10px;
+}
+
+/* Top loading bar */
+@keyframes topbar-slide {
+  0% { width: 0%; opacity: 1; }
+  60% { width: 75%; }
+  100% { width: 100%; opacity: 0; }
+}
+
+.top-loader {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary), var(--primary-light));
+  z-index: 9999;
+  animation: topbar-slide 0.8s ease forwards;
+  box-shadow: 0 0 8px var(--primary);
+}
+
+
 /* Card styles */
 .card {
   background: var(--card);

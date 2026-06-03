@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import TopLoader from "@/components/TopLoader";
+import { Suspense } from "react";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -32,7 +34,12 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen antialiased">
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <Suspense fallback={null}>
+            <TopLoader />
+          </Suspense>
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );
