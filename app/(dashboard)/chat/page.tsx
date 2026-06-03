@@ -1,5 +1,6 @@
 import { createClient } from "@/utils/supabase/server";
 import NotificationMenu from "@/components/NotificationMenu";
+import ChatInterface from "@/components/chat/ChatInterface";
 import { redirect } from "next/navigation";
 
 export default async function ChatPage() {
@@ -22,8 +23,14 @@ export default async function ChatPage() {
           </div>
         </div>
       </header>
-      <main className="flex-1 px-8 py-6 max-w-2xl">
-        <div className="card p-8 text-center space-y-6">
+      <main className="flex-1 px-8 py-6 grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+        {/* Web Chat Interface */}
+        <div className="order-2 lg:order-1">
+          <ChatInterface />
+        </div>
+
+        {/* Telegram Info */}
+        <div className="card p-8 text-center space-y-6 order-1 lg:order-2">
           <div className="w-20 h-20 mx-auto bg-[#eff6ff] rounded-2xl flex items-center justify-center">
             <svg className="w-10 h-10 text-[#3b82f6]" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-2.016 9.504c-.146.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L6.948 14.17l-2.948-.924c-.641-.2-.654-.641.136-.953l11.521-4.441c.537-.194 1.006.131.905.396z"/>
