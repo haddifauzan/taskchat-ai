@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState, useRef } from "react";
 import ThemeToggle from "@/components/ThemeToggle";
+import ConfirmModal from "@/components/ConfirmModal";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: "fa-solid fa-chart-pie" },
@@ -25,6 +26,8 @@ interface SidebarProps {
 
 export default function Sidebar({ userName, userEmail, userAvatar, isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const logoutFormRef = useRef<HTMLFormElement>(null);
 
   const initials = userName
     ? userName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
@@ -147,7 +150,15 @@ export default function Sidebar({ userName, userEmail, userAvatar, isOpen, onClo
               <p className="text-xs font-semibold text-[var(--foreground)] truncate">{userName || "Pengguna"}</p>
               <p className="text-[10px] text-[var(--muted-light)] truncate">{userEmail}</p>
             </div>
-            <form action="/api/auth/signout" method="POST">
+            <form
+              ref={logoutFormRef}
+              action="/api/auth/signout"
+              method="POST"
+              onSubmit={(e) => {
+                e.preventDefault();
+                setShowLogoutConfirm(true);
+              }}
+            >
               <button
                 type="submit"
                 title="Sign out"
@@ -159,6 +170,19 @@ export default function Sidebar({ userName, userEmail, userAvatar, isOpen, onClo
           </div>
         </div>
       </aside>
+
+      <ConfirmModal
+        isOpen={showLogoutConfirm}
+        title="Keluar dari Akun"
+        message="Apakah Anda yakin ingin keluar? Anda harus masuk kembali untuk mengelola tugas."
+        confirmText="Keluar"
+        cancelText="Batal"
+        isDanger={true}
+        onConfirm={() => {
+          logoutFormRef.current?.submit();
+        }}
+        onCancel={() => setShowLogoutConfirm(false)}
+      />
     </>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { updateTask } from "@/app/actions/tasks";
 import { Assignment, Course, TaskPriority, TaskStatus, TaskType } from "@/types";
 
@@ -32,6 +33,12 @@ export default function TaskDetailModal({
   const [isEditing, setIsEditing] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState("");
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
 
   if (!isOpen) return null;
 
@@ -62,12 +69,12 @@ export default function TaskDetailModal({
       try {
         await updateTask(task.id, {
           title: fd.get("title") as string,
-          course_id: fd.get("course_id") as string || undefined,
+          course_id: (fd.get("course_id") as string) || undefined,
           type: fd.get("type") as TaskType,
-          deadline: fd.get("deadline") as string || undefined,
+          deadline: (fd.get("deadline") as string) || undefined,
           priority: fd.get("priority") as TaskPriority,
           status: fd.get("status") as TaskStatus,
-          description: fd.get("description") as string || "",
+          description: (fd.get("description") as string) || "",
         });
         setIsEditing(false);
       } catch (err: any) {
@@ -79,7 +86,7 @@ export default function TaskDetailModal({
   const course = task.courses as any;
   const dl = task.deadline ? new Date(task.deadline) : null;
 
-  return (
+  const modalContent = (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
       <div
         className="absolute inset-0 bg-black/40 backdrop-blur-sm"
@@ -102,7 +109,7 @@ export default function TaskDetailModal({
             )}
             <button
               onClick={onClose}
-              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--card-border)] text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--card-border)] text-[var(--muted)] hover:text-[var(--foreground)] transition-colors cursor-pointer"
             >
               <i className="fa-solid fa-xmark text-lg"></i>
             </button>
@@ -286,4 +293,6 @@ export default function TaskDetailModal({
       </div>
     </div>
   );
+
+  return mounted ? createPortal(modalContent, document.body) : null;
 }
