@@ -2,117 +2,161 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect } from "react";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const navItems = [
-  {
-    href: "/dashboard",
-    label: "Dashboard",
-    icon: <i className="fa-solid fa-chart-pie text-base w-5 text-center"></i>,
-  },
-  {
-    href: "/tasks",
-    label: "Tasks",
-    icon: <i className="fa-solid fa-list-check text-base w-5 text-center"></i>,
-  },
-  {
-    href: "/chat",
-    label: "Chat with Bot",
-    icon: <i className="fa-solid fa-robot text-base w-5 text-center"></i>,
-  },
-  {
-    href: "/calendar",
-    label: "Calendar",
-    icon: <i className="fa-solid fa-calendar-days text-base w-5 text-center"></i>,
-  },
-  {
-    href: "/courses",
-    label: "Courses",
-    icon: <i className="fa-solid fa-book text-base w-5 text-center"></i>,
-  },
-  {
-    href: "/reminders",
-    label: "Reminders",
-    icon: <i className="fa-solid fa-bell text-base w-5 text-center"></i>,
-  },
-  {
-    href: "/settings",
-    label: "Settings",
-    icon: <i className="fa-solid fa-gear text-base w-5 text-center"></i>,
-  },
+  { href: "/dashboard", label: "Dashboard", icon: "fa-solid fa-chart-pie" },
+  { href: "/tasks", label: "Tasks", icon: "fa-solid fa-list-check" },
+  { href: "/chat", label: "Chat with Bot", icon: "fa-solid fa-robot" },
+  { href: "/calendar", label: "Calendar", icon: "fa-solid fa-calendar-days" },
+  { href: "/courses", label: "Courses", icon: "fa-solid fa-book" },
+  { href: "/reminders", label: "Reminders", icon: "fa-solid fa-bell" },
+  { href: "/settings", label: "Settings", icon: "fa-solid fa-gear" },
 ];
 
 interface SidebarProps {
   userName: string;
   userEmail: string;
   userAvatar?: string | null;
+  isOpen: boolean;
+  onClose: () => void;
 }
 
-export default function Sidebar({ userName, userEmail, userAvatar }: SidebarProps) {
+export default function Sidebar({ userName, userEmail, userAvatar, isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
 
   const initials = userName
     ? userName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
     : "U";
 
+  // Close sidebar on route change (mobile)
+  useEffect(() => {
+    onClose();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
+  // Close on Escape key
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleEsc);
+    return () => document.removeEventListener("keydown", handleEsc);
+  }, [onClose]);
+
+  // Prevent body scroll when sidebar open on mobile
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [isOpen]);
+
   return (
-    <aside className="w-[220px] shrink-0 flex flex-col h-screen sticky top-0 bg-white border-r border-[#f0eef8]">
-      {/* Logo */}
-      <div className="px-5 py-6 border-b border-[#f0eef8] flex items-center justify-center">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/assets/taskchat-ai-logo.png"
-          alt="TaskChat AI Logo"
-          className="w-36 h-auto object-contain"
+    <>
+      {/* Mobile overlay */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden"
+          onClick={onClose}
         />
-      </div>
+      )}
 
-      {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {navItems.map((item) => {
-          const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
-                isActive
-                  ? "bg-[#6366f1] text-white shadow-md shadow-[#6366f1]/20 font-semibold"
-                  : "text-[#6b7280] hover:bg-[#f3f4f6] hover:text-[#1a1a2e]"
-              }`}
-            >
-              {item.icon}
-              {item.label}
-            </Link>
-          );
-        })}
-      </nav>
-
-      {/* User profile */}
-      <div className="px-3 py-4 border-t border-[#f0eef8]">
-        <div className="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-[#f3f4f6] transition-colors cursor-pointer group">
-          {userAvatar ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={userAvatar} alt={userName} className="w-8 h-8 rounded-full object-cover" />
-          ) : (
-            <div className="w-8 h-8 rounded-full bg-[#6366f1] flex items-center justify-center text-white text-xs font-bold">
-              {initials}
+      {/* Sidebar */}
+      <aside
+        className={`
+          sidebar-drawer lg:static lg:translate-x-0
+          w-[240px] shrink-0 flex flex-col h-screen
+          bg-[var(--sidebar-bg)] border-r border-[var(--sidebar-border)]
+          shadow-xl lg:shadow-none
+          ${isOpen ? "open" : ""}
+        `}
+      >
+        {/* Logo */}
+        <div className="px-5 py-5 border-b border-[var(--sidebar-border)] flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/assets/taskchat-ai-logo.png"
+              alt="TaskChat AI Logo"
+              className="w-9 h-9 object-contain flex-shrink-0"
+            />
+            <div>
+              <p className="text-sm font-extrabold text-[var(--primary)] leading-none">TaskChat AI</p>
+              <p className="text-[9px] text-[var(--muted-light)] mt-0.5 font-medium tracking-wide">Academic Assistant</p>
             </div>
-          )}
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-[#1a1a2e] truncate">Halo, {userName || "Pengguna"}!</p>
-            <p className="text-[10px] text-[#9ca3af] truncate">{userEmail}</p>
           </div>
-          <form action="/api/auth/signout" method="POST">
-            <button
-              type="submit"
-              title="Sign out"
-              className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-lg hover:bg-[#fee2e2] text-[#9ca3af] hover:text-[#ef4444]"
-            >
-              <i className="fa-solid fa-arrow-right-from-bracket text-xs w-4 h-4 flex items-center justify-center"></i>
-            </button>
-          </form>
+          {/* Close button (mobile only) */}
+          <button
+            onClick={onClose}
+            className="lg:hidden w-7 h-7 flex items-center justify-center rounded-lg text-[var(--muted)] hover:bg-[var(--card-border)] transition-colors cursor-pointer"
+          >
+            <i className="fa-solid fa-xmark text-sm"></i>
+          </button>
         </div>
-      </div>
-    </aside>
+
+        {/* Navigation */}
+        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+          {navItems.map((item) => {
+            const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group ${
+                  isActive
+                    ? "bg-[var(--primary)] text-white shadow-md"
+                    : "text-[var(--muted)] hover:bg-[var(--card-border)] hover:text-[var(--foreground)]"
+                }`}
+              >
+                <i
+                  className={`${item.icon} text-sm w-4 text-center transition-transform group-hover:scale-110 ${
+                    isActive ? "text-white" : "text-[var(--primary)]"
+                  }`}
+                />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Bottom: User + theme toggle */}
+        <div className="px-3 py-4 border-t border-[var(--sidebar-border)] space-y-2">
+          {/* Theme toggle */}
+          <div className="flex items-center justify-between px-2 py-1">
+            <span className="text-xs text-[var(--muted)] font-medium">Tampilan</span>
+            <ThemeToggle />
+          </div>
+
+          {/* User info */}
+          <div className="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-[var(--card-border)] transition-colors group">
+            {userAvatar ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={userAvatar} alt={userName} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-[var(--primary)] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                {initials}
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-[var(--foreground)] truncate">{userName || "Pengguna"}</p>
+              <p className="text-[10px] text-[var(--muted-light)] truncate">{userEmail}</p>
+            </div>
+            <form action="/api/auth/signout" method="POST">
+              <button
+                type="submit"
+                title="Sign out"
+                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-lg hover:bg-[var(--danger-bg)] text-[var(--muted-light)] hover:text-[var(--danger)] cursor-pointer"
+              >
+                <i className="fa-solid fa-arrow-right-from-bracket text-xs"></i>
+              </button>
+            </form>
+          </div>
+        </div>
+      </aside>
+    </>
   );
 }

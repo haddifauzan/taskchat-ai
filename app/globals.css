@@ -31,6 +31,37 @@
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.06);
 }
 
+/* Dark mode overrides */
+html.dark {
+  --background: #0f0f1a;
+  --foreground: #e8e6f8;
+  --card: #1a1a2e;
+  --card-border: #2d2b45;
+  --sidebar-bg: #13131f;
+  --sidebar-border: #2d2b45;
+
+  --primary: #818cf8;
+  --primary-light: #a5b4fc;
+  --primary-dark: #6366f1;
+  --primary-bg: #1e1b4b;
+
+  --success: #4ade80;
+  --success-bg: #052e16;
+  --warning: #fbbf24;
+  --warning-bg: #1c1500;
+  --danger: #f87171;
+  --danger-bg: #1f0707;
+  --info: #60a5fa;
+  --info-bg: #0c1a2e;
+
+  --muted: #9ca3af;
+  --muted-light: #6b7280;
+  --border: #374151;
+  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.3);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.3);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -124,3 +155,35 @@ body {
 .badge-tubes { background: var(--warning-bg); color: var(--warning); }
 .badge-presentasi { background: var(--info-bg); color: var(--info); }
 .badge-praktikum { background: #f0fdf4; color: #16a34a; }
+
+/* Dark mode badge overrides */
+html.dark .badge-pending { background: #374151; color: #9ca3af; }
+html.dark .badge-quiz { background: #2e1065; color: #c084fc; }
+html.dark .badge-praktikum { background: #052e16; color: #4ade80; }
+
+/* Dark mode scrollbar */
+html.dark ::-webkit-scrollbar-thumb {
+  background: #4b5563;
+}
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+/* Transition for smooth dark/light switch */
+*, *::before, *::after {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.15s ease;
+}
+
+/* Sidebar responsive */
+.sidebar-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  z-index: 50;
+  transform: translateX(-100%);
+  transition: transform 0.3s ease;
+}
+.sidebar-drawer.open {
+  transform: translateX(0);
+}
