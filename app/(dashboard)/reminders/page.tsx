@@ -1,8 +1,13 @@
 import { createClient } from "@/utils/supabase/server";
+import { redirect } from "next/navigation";
 
 export default async function RemindersPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
 
   const now = new Date();
   const next7 = new Date(now.getTime() + 7 * 86400000);

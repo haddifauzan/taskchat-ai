@@ -1,9 +1,14 @@
 import { createClient } from "@/utils/supabase/server";
 import CoursesClient from "@/components/courses/CoursesClient";
+import { redirect } from "next/navigation";
 
 export default async function CoursesPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
 
   const { data: courses = [] } = await supabase
     .from("courses")

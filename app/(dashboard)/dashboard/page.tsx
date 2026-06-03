@@ -3,6 +3,7 @@ import { createClient } from "@/utils/supabase/server";
 import { Assignment, DashboardStats } from "@/types";
 import Link from "next/link";
 import AddTaskModal from "@/components/tasks/AddTaskModal";
+import { redirect } from "next/navigation";
 
 function formatGreeting(name: string) {
   const hour = new Date().getHours();
@@ -79,10 +80,15 @@ const statusConfig: Record<string, { label: string; color: string; bg: string; i
 export default async function DashboardPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
   const userName =
-    user?.user_metadata?.full_name ||
-    user?.user_metadata?.name ||
-    user?.email?.split("@")[0] ||
+    user.user_metadata?.full_name ||
+    user.user_metadata?.name ||
+    user.email?.split("@")[0] ||
     "Mahasiswa";
 
   const { data: rawAssignments } = await supabase

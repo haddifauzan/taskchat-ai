@@ -1,9 +1,14 @@
 import { createClient } from "@/utils/supabase/server";
 import TasksClient from "@/components/tasks/TasksClient";
+import { redirect } from "next/navigation";
 
 export default async function TasksPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
 
   const [{ data: assignments = [] }, { data: courses = [] }] = await Promise.all([
     supabase

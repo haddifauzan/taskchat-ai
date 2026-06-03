@@ -1,4 +1,13 @@
-export default function ChatPage() {
+import { createClient } from "@/utils/supabase/server";
+import { redirect } from "next/navigation";
+
+export default async function ChatPage() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
   return (
     <div className="flex-1 flex flex-col min-h-screen">
       <header className="px-8 py-6 border-b border-[#f0eef8] bg-white sticky top-0 z-10">
