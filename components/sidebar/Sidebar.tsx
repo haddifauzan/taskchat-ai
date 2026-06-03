@@ -57,19 +57,13 @@ export default function Sidebar({ userName, userEmail, userAvatar }: SidebarProp
   return (
     <aside className="w-[220px] shrink-0 flex flex-col h-screen sticky top-0 bg-white border-r border-[#f0eef8]">
       {/* Logo */}
-      <div className="px-5 py-5 border-b border-[#f0eef8]">
-        <div className="flex items-center gap-3">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/assets/taskchat-ai-logo.png"
-            alt="TaskChat AI Logo"
-            className="w-9 h-9 object-contain"
-          />
-          <div>
-            <p className="text-sm font-extrabold text-[#6366f1] leading-none">TaskChat AI</p>
-            <p className="text-[9px] text-[#9ca3af] mt-1 font-medium">Academic Assistant</p>
-          </div>
-        </div>
+      <div className="px-5 py-6 border-b border-[#f0eef8] flex items-center justify-center">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/assets/taskchat-ai-logo.png"
+          alt="TaskChat AI Logo"
+          className="w-36 h-auto object-contain"
+        />
       </div>
 
       {/* Navigation */}

@@ -15,16 +15,15 @@ export default async function LoginPage() {
       <div className="relative w-full max-w-md animate-fadeIn">
         {/* Logo & Brand */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-2xl shadow-lg p-2 mb-4 animate-pulse-ring">
+          <div className="inline-flex items-center justify-center mb-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/assets/taskchat-ai-logo.png"
               alt="TaskChat AI Logo"
-              className="w-12 h-12 object-contain"
+              className="w-64 h-auto object-contain"
             />
           </div>
-          <h1 className="text-3xl font-extrabold text-[#1a1a2e] tracking-tight">TaskChat AI</h1>
-          <p className="text-[#6b7280] mt-2 text-sm">Cukup chat, tugas kuliah langsung tercatat.</p>
+          <p className="text-[#6b7280] text-sm font-medium">Cukup chat, tugas kuliah langsung tercatat.</p>
         </div>
 
         {/* Card */}
