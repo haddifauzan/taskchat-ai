@@ -12,9 +12,39 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://taskchat-ai.vercel.app"),
   title: "TaskChat AI — Cukup Chat, Tugas Langsung Tercatat",
   description:
     "Aplikasi pencatatan tugas berbasis AI untuk mahasiswa. Kirim pesan ke bot Telegram, tugas otomatis tersimpan.",
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/assets/taskchat-ai-logo.png",
+  },
+  openGraph: {
+    title: "TaskChat AI — Cukup Chat, Tugas Langsung Tercatat",
+    description:
+      "Aplikasi pencatatan tugas berbasis AI untuk mahasiswa. Kirim pesan ke bot Telegram, tugas otomatis tersimpan.",
+    url: "https://taskchat-ai.vercel.app",
+    siteName: "TaskChat AI",
+    images: [
+      {
+        url: "/assets/taskchat-thumbnail.png",
+        width: 1200,
+        height: 630,
+        alt: "TaskChat AI Preview",
+      },
+    ],
+    locale: "id_ID",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "TaskChat AI — Cukup Chat, Tugas Langsung Tercatat",
+    description:
+      "Aplikasi pencatatan tugas berbasis AI untuk mahasiswa. Kirim pesan ke bot Telegram, tugas otomatis tersimpan.",
+    images: ["/assets/taskchat-thumbnail.png"],
+  },
 };
 
 export default function RootLayout({

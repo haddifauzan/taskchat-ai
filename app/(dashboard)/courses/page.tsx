@@ -12,7 +12,7 @@ export default async function CoursesPage() {
 
   const { data: courses = [] } = await supabase
     .from("courses")
-    .select("*, assignments(count)")
+    .select("*, assignments(*)")
     .eq("user_id", user!.id)
     .order("name");
 
