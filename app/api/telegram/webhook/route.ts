@@ -1,5 +1,13 @@
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@supabase/supabase-js";
 import { NextRequest } from "next/server";
+
+// Admin client to bypass RLS for webhook operations (running server-to-server)
+function createAdminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 // AI extraction prompt (shared across providers)
 const EXTRACTION_PROMPT = `Kamu adalah asisten AI yang mengekstrak informasi tugas dari pesan mahasiswa Indonesia.
@@ -159,7 +167,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ ok: true });
   }
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   // Find user by telegram_id
   const { data: connection } = await supabase

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 
 interface SettingsClientProps {
   userId: string;
@@ -9,6 +10,7 @@ interface SettingsClientProps {
 }
 
 export default function SettingsClient({ userId, telegramConn, appUrl }: SettingsClientProps) {
+  const router = useRouter();
   const [telegramId, setTelegramId] = useState("");
   const [telegramUsername, setTelegramUsername] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -37,6 +39,28 @@ export default function SettingsClient({ userId, telegramConn, appUrl }: Setting
         setSuccess("Telegram berhasil dihubungkan! Sekarang kamu bisa kirim tugas via bot.");
         setTelegramId("");
         setTelegramUsername("");
+        router.refresh();
+      } catch (err: any) {
+        setError(err.message);
+      }
+    });
+  };
+
+  const handleDisconnect = async () => {
+    if (!confirm("Apakah Anda yakin ingin memutuskan hubungan Telegram?")) return;
+    setError(""); setSuccess("");
+
+    startTransition(async () => {
+      try {
+        const res = await fetch("/api/telegram/disconnect", {
+          method: "POST",
+        });
+        if (!res.ok) {
+          const d = await res.json();
+          throw new Error(d.error || "Gagal memutuskan koneksi");
+        }
+        setSuccess("Hubungan Telegram berhasil diputuskan.");
+        router.refresh();
       } catch (err: any) {
         setError(err.message);
       }
@@ -69,13 +93,20 @@ export default function SettingsClient({ userId, telegramConn, appUrl }: Setting
           {telegramConn.telegram_username && (
             <p className="text-xs text-[#16a34a] mt-1">@{telegramConn.telegram_username}</p>
           )}
-          <p className="text-xs text-[#6b7280] mt-2">
+          <p className="text-xs text-[#6b7280] mt-2 mb-4">
             Kirim pesan ke{" "}
             <a href={`https://t.me/${botUsername}`} target="_blank" rel="noreferrer" className="text-[#3b82f6] hover:underline font-medium">
               @{botUsername}
             </a>{" "}
             untuk menyimpan tugas via Telegram.
           </p>
+          <button
+            onClick={handleDisconnect}
+            disabled={isPending}
+            className="w-full py-2 px-4 text-xs font-semibold text-white bg-[#ef4444] hover:bg-[#dc2626] rounded-xl transition-colors disabled:opacity-50"
+          >
+            {isPending ? "Memproses..." : "Putuskan Hubungan Telegram"}
+          </button>
         </div>
       ) : (
         <div className="mt-4 space-y-4">
