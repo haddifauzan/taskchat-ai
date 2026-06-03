@@ -5,6 +5,7 @@ import { Assignment, Course } from "@/types";
 import { deleteTask, updateTaskStatus } from "@/app/actions/tasks";
 import AddTaskModal from "./AddTaskModal";
 import TaskDetailModal from "./TaskDetailModal";
+import ConfirmModal from "@/components/ConfirmModal";
 
 interface TasksClientProps {
   assignments: Assignment[];
@@ -28,6 +29,7 @@ export default function TasksClient({ assignments, courses }: TasksClientProps) 
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterCourse, setFilterCourse] = useState<string>("all");
   const [selectedTask, setSelectedTask] = useState<Assignment | null>(null);
+  const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const now = new Date();
@@ -48,8 +50,14 @@ export default function TasksClient({ assignments, courses }: TasksClientProps) 
   });
 
   const handleDelete = (id: string) => {
-    if (!confirm("Hapus tugas ini?")) return;
-    startTransition(() => deleteTask(id));
+    setTaskToDelete(id);
+  };
+
+  const handleConfirmDelete = () => {
+    if (taskToDelete) {
+      startTransition(() => deleteTask(taskToDelete));
+      setTaskToDelete(null);
+    }
   };
 
   const handleStatusChange = (id: string, status: any) => {
@@ -242,6 +250,15 @@ export default function TasksClient({ assignments, courses }: TasksClientProps) 
           onClose={() => setSelectedTask(null)}
         />
       )}
+
+      {/* Confirm Delete Modal */}
+      <ConfirmModal
+        isOpen={!!taskToDelete}
+        title="Hapus Tugas"
+        message="Apakah Anda yakin ingin menghapus tugas ini? Tindakan ini tidak dapat dibatalkan."
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setTaskToDelete(null)}
+      />
     </div>
   );
 }

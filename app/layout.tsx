@@ -17,8 +17,8 @@ export const metadata: Metadata = {
   description:
     "Aplikasi pencatatan tugas berbasis AI untuk mahasiswa. Kirim pesan ke bot Telegram, tugas otomatis tersimpan.",
   icons: {
-    icon: "/favicon.ico",
-    shortcut: "/favicon.ico",
+    icon: "/assets/taskchat-ai-logo.png",
+    shortcut: "/assets/taskchat-ai-logo.png",
     apple: "/assets/taskchat-ai-logo.png",
   },
   openGraph: {

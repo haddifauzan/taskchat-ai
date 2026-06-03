@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Course, Assignment } from "@/types";
 import { createCourse, deleteCourse, updateCourse } from "@/app/actions/courses";
 import { deleteTask, updateTaskStatus } from "@/app/actions/tasks";
+import ConfirmModal from "@/components/ConfirmModal";
 
 const COLORS = [
   "#6366f1", "#22c55e", "#f59e0b", "#ef4444",
@@ -26,6 +27,19 @@ export default function CoursesClient({ courses }: CoursesClientProps) {
   const [editName, setEditName] = useState("");
   const [editColor, setEditColor] = useState("");
 
+  // Custom Confirm Modal state
+  const [confirmConfig, setConfirmConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: () => {},
+  });
+
   const activeCourse = courses.find((c) => c.id === selectedCourseId);
 
   const handleAdd = (e: React.FormEvent) => {
@@ -43,12 +57,19 @@ export default function CoursesClient({ courses }: CoursesClientProps) {
   };
 
   const handleDelete = (id: string) => {
-    if (!confirm("Hapus mata kuliah ini? Tugas terkait tidak akan terhapus.")) return;
-    startTransition(() => {
-      deleteCourse(id);
-      if (selectedCourseId === id) {
-        setSelectedCourseId(null);
-      }
+    setConfirmConfig({
+      isOpen: true,
+      title: "Hapus Mata Kuliah",
+      message: "Apakah Anda yakin ingin menghapus mata kuliah ini? Tugas terkait tidak akan terhapus.",
+      onConfirm: () => {
+        startTransition(() => {
+          deleteCourse(id);
+          if (selectedCourseId === id) {
+            setSelectedCourseId(null);
+          }
+        });
+        setConfirmConfig((prev) => ({ ...prev, isOpen: false }));
+      },
     });
   };
 
@@ -86,8 +107,15 @@ export default function CoursesClient({ courses }: CoursesClientProps) {
   };
 
   const handleTaskDelete = (taskId: string) => {
-    if (!confirm("Hapus tugas ini?")) return;
-    startTransition(() => deleteTask(taskId));
+    setConfirmConfig({
+      isOpen: true,
+      title: "Hapus Tugas",
+      message: "Apakah Anda yakin ingin menghapus tugas ini? Tindakan ini tidak dapat dibatalkan.",
+      onConfirm: () => {
+        startTransition(() => deleteTask(taskId));
+        setConfirmConfig((prev) => ({ ...prev, isOpen: false }));
+      },
+    });
   };
 
   return (
@@ -378,6 +406,15 @@ export default function CoursesClient({ courses }: CoursesClientProps) {
           </div>
         </div>
       )}
+
+      {/* Custom Confirm Modal */}
+      <ConfirmModal
+        isOpen={confirmConfig.isOpen}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        onConfirm={confirmConfig.onConfirm}
+        onCancel={() => setConfirmConfig((prev) => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 }
