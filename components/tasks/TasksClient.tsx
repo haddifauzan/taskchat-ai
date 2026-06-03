@@ -2,8 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { Assignment, Course } from "@/types";
-import { deleteTask, updateTaskStatus, createTask } from "@/app/actions/tasks";
+import { deleteTask, updateTaskStatus } from "@/app/actions/tasks";
 import AddTaskModal from "./AddTaskModal";
+import TaskDetailModal from "./TaskDetailModal";
 
 interface TasksClientProps {
   assignments: Assignment[];
@@ -26,6 +27,7 @@ export default function TasksClient({ assignments, courses }: TasksClientProps) 
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterCourse, setFilterCourse] = useState<string>("all");
+  const [selectedTask, setSelectedTask] = useState<Assignment | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const now = new Date();
@@ -154,52 +156,62 @@ export default function TasksClient({ assignments, courses }: TasksClientProps) 
                   )}
                 </button>
 
-                {/* Course color dot */}
+                {/* Clickable Area for Details & Editing */}
                 <div
-                  className="w-1.5 h-10 rounded-full shrink-0"
-                  style={{ background: course?.color || "#e5e7eb" }}
-                />
+                  onClick={() => setSelectedTask(task)}
+                  className="flex-1 flex items-center gap-4 min-w-0 cursor-pointer hover:opacity-80 transition-opacity"
+                >
+                  {/* Course color dot */}
+                  <div
+                    className="w-1.5 h-10 rounded-full shrink-0"
+                    style={{ background: course?.color || "#e5e7eb" }}
+                  />
 
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p
-                      className={`text-sm font-semibold ${
-                        task.status === "completed"
-                          ? "line-through text-[#9ca3af]"
-                          : "text-[#1a1a2e]"
-                      }`}
-                    >
-                      {task.title}
-                    </p>
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full badge-${task.type}`}>
-                      {task.type}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3 mt-1">
-                    {course && (
-                      <span className="text-xs text-[#6b7280]">{course.name}</span>
-                    )}
-                    {dl && (
-                      <span className={`flex items-center gap-1 text-xs ${isOverdue ? "text-[#ef4444]" : "text-[#9ca3af]"}`}>
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        {dl.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
-                        {isOverdue && " (Terlambat!)"}
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p
+                        className={`text-sm font-semibold ${
+                          task.status === "completed"
+                            ? "line-through text-[#9ca3af]"
+                            : "text-[#1a1a2e]"
+                        }`}
+                      >
+                        {task.title}
+                      </p>
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full badge-${task.type}`}>
+                        {task.type}
                       </span>
-                    )}
+                    </div>
+                    <div className="flex items-center gap-3 mt-1">
+                      {course && (
+                        <span className="text-xs text-[#6b7280]">{course.name}</span>
+                      )}
+                      {dl && (
+                        <span className={`flex items-center gap-1 text-xs ${isOverdue ? "text-[#ef4444]" : "text-[#9ca3af]"}`}>
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          {dl.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+                          {isOverdue && " (Terlambat!)"}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right badges */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full badge-${task.priority}`}>
+                      {priorityBadge[task.priority]?.label || task.priority}
+                    </span>
+                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full badge-${task.status}`}>
+                      {statusBadge[task.status]?.label || task.status}
+                    </span>
                   </div>
                 </div>
 
-                {/* Right side */}
+                {/* Actions */}
                 <div className="flex items-center gap-2 shrink-0">
-                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full badge-${task.priority}`}>
-                    {priorityBadge[task.priority]?.label || task.priority}
-                  </span>
-                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full badge-${task.status}`}>
-                    {statusBadge[task.status]?.label || task.status}
-                  </span>
                   <button
                     onClick={() => handleDelete(task.id)}
                     disabled={isPending}
@@ -215,6 +227,17 @@ export default function TasksClient({ assignments, courses }: TasksClientProps) 
           })}
         </div>
       )}
+
+      {/* Task Detail Modal */}
+      {selectedTask && (
+        <TaskDetailModal
+          task={selectedTask}
+          courses={courses}
+          isOpen={!!selectedTask}
+          onClose={() => setSelectedTask(null)}
+        />
+      )}
     </div>
   );
 }
+

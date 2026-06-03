@@ -237,3 +237,15 @@ html.dark .border-\[\#f0eef8\/80\] { border-color: var(--sidebar-border) !import
 html.dark .hover\:bg-\[\#f8f7ff\]:hover  { background: var(--card-border) !important; }
 html.dark .hover\:bg-\[\#f3f4f6\]:hover  { background: var(--card-border) !important; }
 html.dark .hover\:bg-\[\#f9fafb\]:hover  { background: var(--card-border) !important; }
+
+/* Global cursor pointers for interactive elements */
+button,
+a,
+select,
+input[type="button"],
+input[type="submit"],
+input[type="reset"],
+[role="button"] {
+  cursor: pointer !important;
+}
+
