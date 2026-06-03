@@ -211,16 +211,29 @@ html.dark ::-webkit-scrollbar-thumb:hover {
   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.15s ease;
 }
 
-/* Sidebar responsive */
-.sidebar-drawer {
-  position: fixed;
-  top: 0;
-  left: 0;
-  height: 100vh;
-  z-index: 50;
-  transform: translateX(-100%);
-  transition: transform 0.3s ease;
-}
-.sidebar-drawer.open {
-  transform: translateX(0);
-}
+/* Dark mode: override hardcoded text colors used in dashboard pages */
+html.dark .text-\[\#1a1a2e\]  { color: var(--foreground) !important; }
+html.dark .text-\[\#6b7280\]  { color: var(--muted) !important; }
+html.dark .text-\[\#9ca3af\]  { color: var(--muted-light) !important; }
+html.dark .text-\[\#4b5563\]  { color: var(--muted) !important; }
+html.dark .text-\[\#374151\]  { color: var(--muted) !important; }
+html.dark .text-\[\#15803d\]  { color: var(--success) !important; }
+html.dark .text-\[\#16a34a\]  { color: var(--success) !important; }
+html.dark .text-\[\#92400e\]  { color: var(--warning) !important; }
+html.dark .text-\[\#78350f\]  { color: var(--muted) !important; }
+
+/* Dark mode: override hardcoded background colors */
+html.dark .bg-\[\#f8f7ff\]    { background: var(--background) !important; }
+html.dark .bg-\[\#f3f4f6\]    { background: var(--card-border) !important; }
+html.dark .bg-\[\#f0eef8\]    { background: var(--card-border) !important; }
+html.dark .bg-\[\#faf9ff\]    { background: var(--card) !important; }
+html.dark .bg-white           { background: var(--card) !important; }
+html.dark .border-\[\#f0eef8\]  { border-color: var(--sidebar-border) !important; }
+html.dark .border-\[\#e5e7eb\]  { border-color: var(--border) !important; }
+html.dark .border-\[\#e0dff8\]  { border-color: var(--card-border) !important; }
+html.dark .border-\[\#f0eef8\/80\] { border-color: var(--sidebar-border) !important; }
+
+/* Dark mode: hover overrides */
+html.dark .hover\:bg-\[\#f8f7ff\]:hover  { background: var(--card-border) !important; }
+html.dark .hover\:bg-\[\#f3f4f6\]:hover  { background: var(--card-border) !important; }
+html.dark .hover\:bg-\[\#f9fafb\]:hover  { background: var(--card-border) !important; }

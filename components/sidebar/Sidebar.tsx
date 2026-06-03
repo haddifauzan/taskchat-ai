@@ -68,11 +68,13 @@ export default function Sidebar({ userName, userEmail, userAvatar, isOpen, onClo
       {/* Sidebar */}
       <aside
         className={`
-          sidebar-drawer lg:static lg:translate-x-0
+          fixed inset-y-0 left-0 z-50
+          lg:static lg:inset-auto lg:z-auto
           w-[240px] shrink-0 flex flex-col h-screen
           bg-[var(--sidebar-bg)] border-r border-[var(--sidebar-border)]
           shadow-xl lg:shadow-none
-          ${isOpen ? "open" : ""}
+          transition-transform duration-300 ease-in-out
+          ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
         `}
       >
         {/* Logo */}
