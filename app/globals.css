@@ -249,3 +249,15 @@ input[type="reset"],
   cursor: pointer !important;
 }
 
+/* OAuth login buttons styling */
+.btn-oauth {
+  background: var(--card) !important;
+  border-color: var(--border) !important;
+  color: var(--foreground) !important;
+  transition: all 0.2s ease-in-out;
+}
+.btn-oauth:hover {
+  background: var(--card-border) !important;
+}
+
+
