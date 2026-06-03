@@ -130,11 +130,23 @@ export async function POST(request: NextRequest) {
   const chatId = message.chat.id;
   const text = message.text.trim();
 
-  // Skip commands
-  if (text.startsWith("/start")) {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
+  // Public commands (no auth check needed)
+  if (text === "/start" || text === "/help") {
     await sendTelegramMessage(
       chatId,
-      `👋 Halo! Saya <b>TaskChat AI Bot</b>.\n\nKirimkan pesan tentang tugasmu dan saya akan otomatis menyimpannya!\n\n<b>Contoh:</b>\n"Tugas AI bikin chatbot deadline minggu depan"\n"Quiz Basis Data besok jam 10 pagi"\n\nLogin di <a href="${process.env.NEXT_PUBLIC_APP_URL}">TaskChat AI</a> untuk melihat dashboardmu.`
+      `👋 Halo! Saya <b>TaskChat AI Bot</b>.\n\n` +
+      `Bot ini membantu kamu mencatat tugas kuliah langsung via Telegram. Cukup kirim chat biasa seperti:\n` +
+      `<i>"Tugas Pemrograman Web membuat website portfolio deadline Jumat depan"</i>\n\n` +
+      `<b>Daftar Perintah:</b>\n` +
+      `/today - Tugas hari ini\n` +
+      `/upcoming - Deadline terdekat (7 hari)\n` +
+      `/tasks - Semua tugas belum selesai\n` +
+      `/courses - Daftar mata kuliah\n` +
+      `/stats - Statistik tugas\n` +
+      `/help - Bantuan penggunaan\n\n` +
+      `Login di <a href="${appUrl}">TaskChat AI</a> untuk melihat dashboard.`
     );
     return Response.json({ ok: true });
   }
@@ -151,8 +163,146 @@ export async function POST(request: NextRequest) {
   if (!connection) {
     await sendTelegramMessage(
       chatId,
-      `❌ Akunmu belum terhubung ke TaskChat AI.\n\nLogin dan hubungkan Telegram di: <a href="${process.env.NEXT_PUBLIC_APP_URL}/settings">${process.env.NEXT_PUBLIC_APP_URL}/settings</a>`
+      `❌ Akunmu belum terhubung ke TaskChat AI.\n\nLogin dan hubungkan Telegram di: <a href="${appUrl}/settings">${appUrl}/settings</a>`
     );
+    return Response.json({ ok: true });
+  }
+
+  // Handle Authenticated Commands
+  if (text.startsWith("/")) {
+    const cmd = text.toLowerCase().split(" ")[0];
+    const now = new Date();
+
+    if (cmd === "/today") {
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+      const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
+
+      const { data: tasks } = await supabase
+        .from("assignments")
+        .select("*, courses(name)")
+        .eq("user_id", connection.user_id)
+        .neq("status", "completed")
+        .gte("deadline", todayStart)
+        .lt("deadline", todayEnd)
+        .order("deadline");
+
+      if (!tasks || tasks.length === 0) {
+        await sendTelegramMessage(chatId, "🎉 <b>Tidak ada tugas untuk hari ini!</b>\nNikmati harimu.");
+      } else {
+        let msg = `📅 <b>Tugas Hari Ini (${tasks.length}):</b>\n\n`;
+        tasks.forEach((t: any, i: number) => {
+          const courseName = t.courses?.name || "Tanpa Mata Kuliah";
+          const time = t.deadline ? new Date(t.deadline).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) : "-";
+          msg += `${i + 1}. 📝 <b>${t.title}</b> (${courseName})\n🕒 Jam: ${time}\n🎯 Prioritas: ${t.priority}\n\n`;
+        });
+        await sendTelegramMessage(chatId, msg);
+      }
+      return Response.json({ ok: true });
+    }
+
+    if (cmd === "/upcoming") {
+      const next7Days = new Date(now.getTime() + 7 * 86400000).toISOString();
+
+      const { data: tasks } = await supabase
+        .from("assignments")
+        .select("*, courses(name)")
+        .eq("user_id", connection.user_id)
+        .neq("status", "completed")
+        .gte("deadline", now.toISOString())
+        .lte("deadline", next7Days)
+        .order("deadline");
+
+      if (!tasks || tasks.length === 0) {
+        await sendTelegramMessage(chatId, "🎉 <b>Tidak ada deadline tugas dalam 7 hari ke depan!</b>");
+      } else {
+        let msg = `⏰ <b>Deadline Terdekat 7 Hari (${tasks.length}):</b>\n\n`;
+        tasks.forEach((t: any, i: number) => {
+          const courseName = t.courses?.name || "Tanpa Mata Kuliah";
+          const dateStr = t.deadline ? new Date(t.deadline).toLocaleDateString("id-ID", { day: "numeric", month: "short" }) : "-";
+          msg += `${i + 1}. 📝 <b>${t.title}</b> (${courseName})\n📅 Tgl: ${dateStr}\n🎯 Prioritas: ${t.priority}\n\n`;
+        });
+        await sendTelegramMessage(chatId, msg);
+      }
+      return Response.json({ ok: true });
+    }
+
+    if (cmd === "/tasks") {
+      const { data: tasks } = await supabase
+        .from("assignments")
+        .select("*, courses(name)")
+        .eq("user_id", connection.user_id)
+        .neq("status", "completed")
+        .order("deadline", { ascending: true, nullsFirst: false });
+
+      if (!tasks || tasks.length === 0) {
+        await sendTelegramMessage(chatId, "🎉 <b>Semua tugas telah selesai dikerjakan!</b>");
+      } else {
+        let msg = `📋 <b>Daftar Tugas Aktif (${tasks.length}):</b>\n\n`;
+        tasks.forEach((t: any, i: number) => {
+          const courseName = t.courses?.name || "Tanpa MK";
+          const dlText = t.deadline ? new Date(t.deadline).toLocaleDateString("id-ID", { day: "numeric", month: "short" }) : "Tidak ada";
+          msg += `${i + 1}. 📝 <b>${t.title}</b>\n📚 MK: ${courseName} | 📅 DL: ${dlText} | Status: <code>${t.status}</code>\n\n`;
+        });
+        await sendTelegramMessage(chatId, msg);
+      }
+      return Response.json({ ok: true });
+    }
+
+    if (cmd === "/courses") {
+      const { data: courses } = await supabase
+        .from("courses")
+        .select("name")
+        .eq("user_id", connection.user_id)
+        .order("name");
+
+      if (!courses || courses.length === 0) {
+        await sendTelegramMessage(chatId, "📚 <b>Belum ada mata kuliah yang didaftarkan.</b>");
+      } else {
+        let msg = `📚 <b>Daftar Mata Kuliah (${courses.length}):</b>\n\n`;
+        courses.forEach((c: any, i: number) => {
+          msg += `${i + 1}. 📖 ${c.name}\n`;
+        });
+        await sendTelegramMessage(chatId, msg);
+      }
+      return Response.json({ ok: true });
+    }
+
+    if (cmd === "/stats") {
+      const { data: tasks } = await supabase
+        .from("assignments")
+        .select("status, deadline")
+        .eq("user_id", connection.user_id);
+
+      const stats = { total: 0, pending: 0, in_progress: 0, completed: 0, overdue: 0 };
+      if (tasks) {
+        stats.total = tasks.length;
+        tasks.forEach((t: any) => {
+          if (t.status === "completed") {
+            stats.completed++;
+          } else if (t.deadline && new Date(t.deadline) < now) {
+            stats.overdue++;
+          } else if (t.status === "in_progress") {
+            stats.in_progress++;
+          } else {
+            stats.pending++;
+          }
+        });
+      }
+
+      const msg = `📊 <b>Statistik Tugas Kuliahmu:</b>\n\n` +
+        `📝 Total Tugas: <b>${stats.total}</b>\n` +
+        `⏳ Ongoing: <b>${stats.pending}</b>\n` +
+        `🔄 In Progress: <b>${stats.in_progress}</b>\n` +
+        `✅ Selesai: <b>${stats.completed}</b>\n` +
+        `⚠️ Terlambat: <b>${stats.overdue}</b>\n\n` +
+        `Buka dashboard lengkap di <a href="${appUrl}/dashboard">TaskChat AI Dashboard</a>`;
+
+      await sendTelegramMessage(chatId, msg);
+      return Response.json({ ok: true });
+    }
+
+    // Default response for unhandled commands
+    await sendTelegramMessage(chatId, "❌ Command tidak dikenal. Gunakan /help untuk melihat daftar perintah.");
     return Response.json({ ok: true });
   }
 

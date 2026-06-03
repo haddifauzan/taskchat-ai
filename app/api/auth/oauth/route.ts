@@ -16,8 +16,8 @@ export async function POST(request: NextRequest) {
   });
 
   if (error || !data.url) {
-    return NextResponse.redirect(new URL("/login?error=oauth_failed", origin));
+    return NextResponse.redirect(new URL("/login?error=oauth_failed", origin), { status: 303 });
   }
 
-  return NextResponse.redirect(data.url);
+  return NextResponse.redirect(data.url, { status: 303 });
 }
