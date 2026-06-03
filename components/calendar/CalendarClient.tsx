@@ -80,8 +80,8 @@ export default function CalendarClient({ initialAssignments }: CalendarClientPro
       {/* LEFT COLUMN: Compact Interactive Calendar */}
       <div className="card p-6 lg:col-span-7 bg-white shadow-sm border border-[#f0eef8] rounded-2xl">
         {/* Header navigasi bulan */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-1">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div className="flex items-center justify-between sm:justify-start gap-1 w-full sm:w-auto">
             <button
               onClick={handlePrevMonth}
               className="w-9 h-9 flex items-center justify-center rounded-xl text-[#6b7280] hover:bg-[#f3f4f6] hover:text-[#1a1a2e] transition-colors cursor-pointer"
@@ -99,7 +99,7 @@ export default function CalendarClient({ initialAssignments }: CalendarClientPro
             </button>
           </div>
 
-          <div className="flex items-center gap-4 text-xs font-semibold text-[#9ca3af]">
+          <div className="flex items-center gap-4 text-xs font-semibold text-[#9ca3af] self-start sm:self-auto pl-2 sm:pl-0">
             <span className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-[#6366f1] inline-block" />
               Tugas aktif

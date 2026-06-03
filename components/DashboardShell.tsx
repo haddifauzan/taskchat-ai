@@ -30,7 +30,7 @@ export default function DashboardShell({
         onClose={closeSidebar}
       />
 
-      <div className="flex-1 flex flex-col min-h-screen overflow-x-hidden">
+      <div className="flex-1 flex flex-col min-h-screen">
         {/* Mobile top bar with burger button */}
         <div className="lg:hidden flex items-center justify-between px-4 py-3 border-b border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] sticky top-0 z-30">
           <button
