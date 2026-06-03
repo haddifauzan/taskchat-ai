@@ -108,8 +108,13 @@ export default async function DashboardPage() {
   const assignments = rawAssignments ?? [];
 
   const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const todayEnd = new Date(todayStart.getTime() + 86400000);
+  const jakartaDateFormatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Jakarta",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const todayJakarta = jakartaDateFormatter.format(now);
 
   // Compute stats
   const stats: DashboardStats = {
@@ -132,12 +137,11 @@ export default async function DashboardPage() {
     }
   }
 
-  // Today's tasks: deadline today OR created today
+  // Today's tasks: deadline today in Asia/Jakarta timezone
   const todayTasks = (assignments as Assignment[]).filter((a) => {
     if (a.status === "completed") return false;
     if (a.deadline) {
-      const dl = new Date(a.deadline);
-      return dl >= todayStart && dl < todayEnd;
+      return jakartaDateFormatter.format(new Date(a.deadline)) === todayJakarta;
     }
     return false;
   }).slice(0, 5);
@@ -165,7 +169,7 @@ export default async function DashboardPage() {
   return (
     <div className="flex-1 flex flex-col min-h-screen">
       {/* Header */}
-      <header className="px-8 py-6 flex items-center justify-between border-b border-[#f0eef8] bg-white sticky top-0 z-10">
+      <header className="px-8 py-6 flex items-center justify-between border-b border-[#f0eef8] bg-white static lg:sticky lg:top-0 z-10">
         <div>
           <h1 className="text-2xl font-bold text-[#1a1a2e]">
             {formatGreeting(userName)}
@@ -173,7 +177,9 @@ export default async function DashboardPage() {
           <p className="text-sm text-[#9ca3af] mt-0.5">{formatDate(now)}</p>
         </div>
         <div className="flex items-center gap-3">
-          <NotificationMenu />
+          <div className="hidden lg:block">
+            <NotificationMenu />
+          </div>
           <AddTaskModal courses={courses as any} />
         </div>
       </header>
@@ -211,7 +217,7 @@ export default async function DashboardPage() {
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-xs bg-[#eef2ff] text-[#6366f1] px-3 py-1 rounded-full font-medium">
-                  {formatDate(todayStart)}
+                  {formatDate(now)}
                 </span>
                 <Link href="/tasks" className="text-xs text-[#6366f1] font-medium hover:underline">
                   See all

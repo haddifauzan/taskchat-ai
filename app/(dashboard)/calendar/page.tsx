@@ -21,7 +21,7 @@ export default async function CalendarPage() {
 
   return (
     <div className="flex-1 flex flex-col min-h-screen">
-      <header className="px-8 py-6 flex items-center justify-between border-b border-[#f0eef8] bg-white sticky top-0 z-10">
+      <header className="px-8 py-6 flex items-center justify-between border-b border-[#f0eef8] bg-white static lg:sticky lg:top-0 z-10">
         <div>
           <div className="flex items-center gap-2">
             <i className="fa-solid fa-calendar-days text-[#6366f1] text-xl"></i>
@@ -30,7 +30,9 @@ export default async function CalendarPage() {
           <p className="text-sm text-[#9ca3af] mt-0.5">Lihat dan kelola timeline penugasanmu secara interaktif</p>
         </div>
         <div className="flex items-center gap-3">
-          <NotificationMenu />
+          <div className="hidden lg:block">
+            <NotificationMenu />
+          </div>
         </div>
       </header>
 

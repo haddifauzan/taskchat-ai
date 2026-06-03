@@ -12,6 +12,13 @@ export default async function RemindersPage() {
 
   const now = new Date();
   const next7 = new Date(now.getTime() + 7 * 86400000);
+  const jakartaDateFormatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Jakarta",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const todayJakarta = jakartaDateFormatter.format(now);
 
   // Get all non-completed tasks with deadlines
   const { data: tasks = [] } = await supabase
@@ -25,9 +32,7 @@ export default async function RemindersPage() {
   // Categorize
   const overdue = (tasks as any[]).filter((t) => new Date(t.deadline) < now);
   const today = (tasks as any[]).filter((t) => {
-    const dl = new Date(t.deadline);
-    return dl >= new Date(now.getFullYear(), now.getMonth(), now.getDate()) &&
-      dl < new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    return jakartaDateFormatter.format(new Date(t.deadline)) === todayJakarta;
   });
   const upcoming = (tasks as any[]).filter((t) => {
     const dl = new Date(t.deadline);
@@ -95,13 +100,15 @@ export default async function RemindersPage() {
 
   return (
     <div className="flex-1 flex flex-col min-h-screen">
-      <header className="px-8 py-6 flex items-center justify-between border-b border-[#f0eef8] bg-white sticky top-0 z-10">
+      <header className="px-8 py-6 flex items-center justify-between border-b border-[#f0eef8] bg-white static lg:sticky lg:top-0 z-10">
         <div>
           <h1 className="text-2xl font-bold text-[#1a1a2e]">Reminders</h1>
           <p className="text-sm text-[#9ca3af] mt-0.5">Pantau deadline tugasmu</p>
         </div>
         <div className="flex items-center gap-3">
-          <NotificationMenu />
+          <div className="hidden lg:block">
+            <NotificationMenu />
+          </div>
         </div>
       </header>
       <main className="flex-1 px-8 py-6 space-y-4">
