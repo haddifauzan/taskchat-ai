@@ -107,6 +107,14 @@ async function sendTelegramMessage(chatId: number, text: string) {
   });
 }
 
+export async function GET() {
+  return Response.json({
+    status: "active",
+    message: "TaskChat AI Telegram Webhook is active and running. Waiting for POST updates from Telegram.",
+    timestamp: new Date().toISOString(),
+  });
+}
+
 export async function POST(request: NextRequest) {
   // Verify webhook secret
   const secret = request.headers.get("x-telegram-bot-api-secret-token");
