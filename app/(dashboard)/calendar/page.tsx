@@ -1,6 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import CalendarClient from "@/components/calendar/CalendarClient";
+import NotificationMenu from "@/components/NotificationMenu";
 
 export default async function CalendarPage() {
   const supabase = await createClient();
@@ -20,12 +21,17 @@ export default async function CalendarPage() {
 
   return (
     <div className="flex-1 flex flex-col min-h-screen">
-      <header className="px-8 py-6 border-b border-[#f0eef8] bg-white sticky top-0 z-10">
-        <div className="flex items-center gap-2">
-          <i className="fa-solid fa-calendar-days text-[#6366f1] text-xl"></i>
-          <h1 className="text-2xl font-extrabold text-[#1a1a2e]">Calendar</h1>
+      <header className="px-8 py-6 flex items-center justify-between border-b border-[#f0eef8] bg-white sticky top-0 z-10">
+        <div>
+          <div className="flex items-center gap-2">
+            <i className="fa-solid fa-calendar-days text-[#6366f1] text-xl"></i>
+            <h1 className="text-2xl font-extrabold text-[#1a1a2e]">Calendar</h1>
+          </div>
+          <p className="text-sm text-[#9ca3af] mt-0.5">Lihat dan kelola timeline penugasanmu secara interaktif</p>
         </div>
-        <p className="text-sm text-[#9ca3af] mt-0.5">Lihat dan kelola timeline penugasanmu secara interaktif</p>
+        <div className="flex items-center gap-3">
+          <NotificationMenu />
+        </div>
       </header>
 
       <main className="flex-1 px-8 py-6">

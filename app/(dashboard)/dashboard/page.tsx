@@ -3,6 +3,7 @@ import { createClient } from "@/utils/supabase/server";
 import { Assignment, DashboardStats } from "@/types";
 import Link from "next/link";
 import AddTaskModal from "@/components/tasks/AddTaskModal";
+import NotificationMenu from "@/components/NotificationMenu";
 import { redirect } from "next/navigation";
 
 function formatGreeting(name: string) {
@@ -172,6 +173,7 @@ export default async function DashboardPage() {
           <p className="text-sm text-[#9ca3af] mt-0.5">{formatDate(now)}</p>
         </div>
         <div className="flex items-center gap-3">
+          <NotificationMenu />
           <AddTaskModal courses={courses as any} />
         </div>
       </header>

@@ -1,5 +1,6 @@
 import { createClient } from "@/utils/supabase/server";
 import TasksClient from "@/components/tasks/TasksClient";
+import NotificationMenu from "@/components/NotificationMenu";
 import { redirect } from "next/navigation";
 
 export default async function TasksPage() {
@@ -29,6 +30,9 @@ export default async function TasksPage() {
         <div>
           <h1 className="text-2xl font-bold text-[#1a1a2e]">Tasks</h1>
           <p className="text-sm text-[#9ca3af] mt-0.5">Kelola semua tugasmu di sini</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <NotificationMenu />
         </div>
       </header>
       <main className="flex-1 px-8 py-6">

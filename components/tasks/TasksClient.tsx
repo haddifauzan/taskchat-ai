@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { Assignment, Course } from "@/types";
 import { deleteTask, updateTaskStatus } from "@/app/actions/tasks";
 import AddTaskModal from "./AddTaskModal";
@@ -25,12 +26,25 @@ const priorityBadge: Record<string, { label: string; cls: string; dot: string }>
 };
 
 export default function TasksClient({ assignments, courses }: TasksClientProps) {
+  const searchParams = useSearchParams();
+  const taskIdParam = searchParams.get("id");
+
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterCourse, setFilterCourse] = useState<string>("all");
   const [selectedTask, setSelectedTask] = useState<Assignment | null>(null);
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  // Auto-open selected task from query param
+  useEffect(() => {
+    if (taskIdParam) {
+      const matched = assignments.find((a) => a.id === taskIdParam);
+      if (matched) {
+        setSelectedTask(matched);
+      }
+    }
+  }, [taskIdParam, assignments]);
 
   const now = new Date();
 

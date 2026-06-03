@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import Sidebar from "@/components/sidebar/Sidebar";
 import ThemeToggle from "@/components/ThemeToggle";
+import NotificationMenu from "@/components/NotificationMenu";
 
 interface DashboardShellProps {
   children: React.ReactNode;
@@ -52,7 +53,10 @@ export default function DashboardShell({
             <span className="text-sm font-extrabold text-[var(--primary)]">TaskChat AI</span>
           </div>
 
-          <ThemeToggle />
+          <div className="flex items-center gap-2">
+            <NotificationMenu />
+            <ThemeToggle />
+          </div>
         </div>
 
         {/* Page content */}
