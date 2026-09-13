@@ -3,31 +3,39 @@ import { NextRequest } from "next/server";
 import { formatDeadlineForDb } from "@/utils/date";
 
 const EXTRACTION_PROMPT = `Kamu adalah asisten AI untuk aplikasi manajemen tugas kuliah (TaskChat AI) untuk mahasiswa Indonesia.
-Tugasmu adalah menganalisis pesan dari mahasiswa dalam bahasa Indonesia dan menentukan aksi apa yang ingin mereka lakukan: membuat tugas baru ("create"), memperbarui tugas ("update"), menghapus tugas ("delete"), atau mendeteksi jika pesan tidak valid/tidak sesuai perintah ("invalid").
+Tugasmu adalah menganalisis pesan dari mahasiswa dalam bahasa Indonesia dan menentukan aksi apa yang ingin mereka lakukan: membuat tugas baru ("create"), memperbarui tugas ("update"), menghapus tugas ("delete"), atau mendeteksi jika pesan berupa sapaan/tidak sesuai perintah ("invalid").
 
 Tentukan salah satu dari aksi berikut:
 1. "create" (Membuat tugas baru)
 2. "update" (Memperbarui informasi tugas yang sudah ada seperti nama, deskripsi, deadline, tipe, prioritas, atau status)
 3. "delete" (Menghapus tugas yang sudah ada)
-4. "invalid" (Pesan tidak dipahami, tidak sesuai perintah, atau instruksi tidak lengkap/bias)
+4. "invalid" (Pesan sapaan, tidak dipahami, tidak sesuai perintah, atau instruksi tidak lengkap/bias)
 
-Ketentuan Ekstraksi Output JSON:
+Format JSON yang wajib diikuti:
+{
+  "action": "create" | "update" | "delete" | "invalid",
+  "search_query": "string (hanya untuk update dan delete, tanpa kata kerja hapus/ubah)",
+  "task_data": {
+    "title": "string (nama tugas baru yang ringkas)",
+    "course": "string (nama mata kuliah)",
+    "description": "string (deskripsi/rincian tugas)",
+    "deadline": "YYYY-MM-DD atau null",
+    "type": "tugas" | "quiz" | "tubes" | "presentasi" | "praktikum",
+    "priority": "high" | "medium" | "low",
+    "status": "pending" | "in_progress" | "completed"
+  },
+  "feedback_message": "string (wajib jika action adalah invalid)"
+}
+
+Ketentuan Khusus:
 - "action": Wajib diisi salah satu dari: "create", "update", "delete", "invalid".
 - "search_query": Wajib diisi untuk aksi "update" dan "delete". Tentukan nama tugas, mata kuliah, atau kata kunci tugas lama yang ingin dicari (misal: jika user berkata "ubah deadline tugas kalkulus ke besok", maka search_query adalah "kalkulus"). Jangan sertakan kata kerja seperti "hapus", "ubah", "selesaikan", "selesai" di dalam search_query.
-- "task_data": Wajib diisi untuk aksi "create" dan (jika ada perubahan) untuk "update". Isi field yang terdeteksi atau buat nilai yang relevan sesuai panduan berikut:
-  * "title": Judul/nama tugas baru yang singkat dan padat (misal: "Membuat Resume Bab 2"). Jangan terlalu panjang.
-  * "course": Nama mata kuliah yang disebutkan.
-  * "description": Deskripsi singkat atau rincian tugas. Jika pengguna menyertakan rincian tambahan (seperti "tentang hukum newton", "tulis tangan di kertas A4"), masukkan ke sini. Jika tidak ada rincian tambahan, buatlah ringkasan/deskripsi singkat otomatis berdasarkan judul tugas dan mata kuliahnya (misal: "Tugas membuat resume bab 2 untuk mata kuliah Fisika") agar kolom deskripsi tidak kosong.
-  * "deadline": Tanggal deadline dalam format ISO 8601 (YYYY-MM-DD atau YYYY-MM-DDTHH:mm:ss). Jika berupa waktu relatif seperti "besok", "lusa", "jumat depan", hitung berdasarkan tanggal Hari Ini yang diberikan. Jika tidak disebutkan, isi null.
-  * "type": Kategori tugas ("tugas", "quiz", "tubes", "presentasi", "praktikum")
-  * "priority": Prioritas tugas ("high", "medium", "low").
-    - Jika membuat tugas baru: otomatis "high" jika deadline < 3 hari, "medium" jika < 7 hari, "low" jika > 7 hari atau tidak ada deadline.
-    - Jika update: isi jika diminta secara eksplisit (misal: "ubah prioritas tugas kalkulus jadi high").
-  * "status": Status tugas ("pending", "in_progress", "completed").
-    - Jika user berkata "selesai", "sudah dikerjakan", "telah beres", "tandai selesai" untuk suatu tugas, maka status menjadi "completed".
-    - Jika user berkata "sedang dikerjakan", "mulai kerjakan", "in progress", maka status menjadi "in_progress".
-    - Jika user berkata "belum dikerjakan", "pending", maka status menjadi "pending".
-- "feedback_message": Wajib diisi jika action adalah "invalid". Berikan pesan feedback yang ramah, sopan, dan terstruktur dalam bahasa Indonesia untuk memandu user tentang format perintah yang benar (menambah, mengubah, menghapus tugas) dengan contoh konkret.
+- "task_data": Wajib gunakan nama kunci "title" (bukan name/judul) dan "course" (bukan subject/mata_kuliah).
+  * "priority": "high" jika deadline < 3 hari, "medium" jika < 7 hari, "low" jika > 7 hari atau tidak ada deadline.
+  * "status": "completed" jika selesai/beres, "in_progress" jika sedang dikerjakan, "pending" jika belum dikerjakan.
+- "feedback_message":
+  * Jika mahasiswa menyapa (misal: "hai", "halo", "p", "selamat pagi"), berikan balasan sapaan ramah dan panduan singkat contoh perintah (tambah, ubah, hapus tugas) bagaimana TaskChat AI bisa membantunya.
+  * Jika perintah tidak jelas, berikan panduan yang ramah dan sopan dengan contoh konkret.
 
 Jawab HANYA dengan JSON valid, tanpa markdown atau penjelasan tambahan.`;
 
@@ -46,6 +54,47 @@ interface ExtractedTaskAction {
   feedback_message?: string;
 }
 
+function normalizeTaskData(raw: any) {
+  if (!raw) return raw;
+  const title = raw.title || raw.name || raw.judul;
+  const course = raw.course || raw.subject || raw.mata_kuliah;
+  let priority = raw.priority;
+  if (priority === "normal" || priority === "sedang") priority = "medium";
+  if (priority === "tinggi") priority = "high";
+  if (priority === "rendah") priority = "low";
+  if (priority && !["high", "medium", "low"].includes(priority)) priority = "medium";
+
+  let status = raw.status;
+  if (status === "selesai" || status === "done") status = "completed";
+  if (status === "ongoing" || status === "proses") status = "in_progress";
+  if (status && !["pending", "in_progress", "completed"].includes(status)) status = "pending";
+
+  let type = raw.type;
+  if (type && !["tugas", "quiz", "tubes", "presentasi", "praktikum"].includes(type)) type = "tugas";
+
+  return {
+    ...raw,
+    title,
+    course,
+    priority: priority || "medium",
+    status: status || "pending",
+    type: type || "tugas"
+  };
+}
+
+function parseAiJson(raw: string): ExtractedTaskAction | null {
+  try {
+    const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+    const parsed = JSON.parse(cleaned);
+    if (parsed && parsed.task_data) {
+      parsed.task_data = normalizeTaskData(parsed.task_data);
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
 async function extractTaskFromMessage(message: string): Promise<ExtractedTaskAction | null> {
   const groqKey = process.env.GROQ_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY;
@@ -61,13 +110,13 @@ async function extractTaskFromMessage(message: string): Promise<ExtractedTaskAct
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
+          model: "openai/gpt-oss-120b",
           messages: [
             { role: "system", content: EXTRACTION_PROMPT },
             { role: "user", content: userPrompt },
           ],
           temperature: 0.1,
-          max_tokens: 400,
+          max_tokens: 800,
           response_format: { type: "json_object" },
         }),
       });
@@ -75,17 +124,23 @@ async function extractTaskFromMessage(message: string): Promise<ExtractedTaskAct
       if (res.ok) {
         const json = await res.json();
         const content = json.choices?.[0]?.message?.content;
-        if (content) return JSON.parse(content);
+        if (content) {
+          const parsed = parseAiJson(content);
+          if (parsed) return parsed;
+        }
+      } else {
+        const errText = await res.text();
+        console.error("[Chat AI] Groq returned non-OK:", res.status, errText);
       }
-    } catch {
-      // Fall through to Gemini
+    } catch (err) {
+      console.error("[Chat AI] Groq fetch exception:", err);
     }
   }
 
   if (geminiKey) {
     try {
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${geminiKey}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -98,7 +153,7 @@ async function extractTaskFromMessage(message: string): Promise<ExtractedTaskAct
             ],
             generationConfig: {
               temperature: 0.1,
-              maxOutputTokens: 400,
+              maxOutputTokens: 1000,
               responseMimeType: "application/json",
             },
           }),
@@ -108,10 +163,16 @@ async function extractTaskFromMessage(message: string): Promise<ExtractedTaskAct
       if (res.ok) {
         const json = await res.json();
         const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (text) return JSON.parse(text);
+        if (text) {
+          const parsed = parseAiJson(text);
+          if (parsed) return parsed;
+        }
+      } else {
+        const errText = await res.text();
+        console.error("[Chat AI] Gemini returned non-OK:", res.status, errText);
       }
-    } catch {
-      return null;
+    } catch (err) {
+      console.error("[Chat AI] Gemini fetch exception:", err);
     }
   }
 
