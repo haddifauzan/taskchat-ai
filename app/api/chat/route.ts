@@ -95,88 +95,107 @@ function parseAiJson(raw: string): ExtractedTaskAction | null {
   }
 }
 
-async function extractTaskFromMessage(message: string): Promise<ExtractedTaskAction | null> {
-  const groqKey = process.env.GROQ_API_KEY;
-  const geminiKey = process.env.GEMINI_API_KEY;
+export const dynamic = "force-dynamic";
+
+interface ExtractionResult {
+  data: ExtractedTaskAction | null;
+  debugError?: string;
+}
+
+async function extractTaskFromMessage(message: string): Promise<ExtractionResult> {
+  const groqKey = process.env.GROQ_API_KEY?.trim();
+  const geminiKey = process.env.GEMINI_API_KEY?.trim();
   const today = new Date().toISOString().split("T")[0];
   const userPrompt = `Hari ini: ${today}\n\nPesan mahasiswa:\n"${message}"\n\nEkstrak aksi dan informasi tugas dari pesan di atas sesuai instruksi sistem.`;
 
-  if (groqKey) {
-    try {
-      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${groqKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "openai/gpt-oss-120b",
-          messages: [
-            { role: "system", content: EXTRACTION_PROMPT },
-            { role: "user", content: userPrompt },
-          ],
-          temperature: 0.1,
-          max_tokens: 800,
-          response_format: { type: "json_object" },
-        }),
-      });
+  const logs: string[] = [];
 
-      if (res.ok) {
-        const json = await res.json();
-        const content = json.choices?.[0]?.message?.content;
-        if (content) {
-          const parsed = parseAiJson(content);
-          if (parsed) return parsed;
-        }
-      } else {
-        const errText = await res.text();
-        console.error("[Chat AI] Groq returned non-OK:", res.status, errText);
-      }
-    } catch (err) {
-      console.error("[Chat AI] Groq fetch exception:", err);
-    }
-  }
-
-  if (geminiKey) {
-    try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${geminiKey}`,
-        {
+  if (!groqKey) {
+    logs.push("Groq: GROQ_API_KEY belum diset di environment variable");
+  } else {
+    const groqModels = ["openai/gpt-oss-120b", "openai/gpt-oss-20b"];
+    for (const model of groqModels) {
+      try {
+        const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            Authorization: `Bearer ${groqKey}`,
+            "Content-Type": "application/json",
+          },
           body: JSON.stringify({
-            system_instruction: {
-              parts: [{ text: EXTRACTION_PROMPT }],
-            },
-            contents: [
-              { role: "user", parts: [{ text: userPrompt }] },
+            model,
+            messages: [
+              { role: "system", content: EXTRACTION_PROMPT },
+              { role: "user", content: userPrompt },
             ],
-            generationConfig: {
-              temperature: 0.1,
-              maxOutputTokens: 1000,
-              responseMimeType: "application/json",
-            },
+            temperature: 0.1,
+            max_tokens: 800,
+            response_format: { type: "json_object" },
           }),
-        }
-      );
+        });
 
-      if (res.ok) {
-        const json = await res.json();
-        const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (text) {
-          const parsed = parseAiJson(text);
-          if (parsed) return parsed;
+        if (res.ok) {
+          const json = await res.json();
+          const content = json.choices?.[0]?.message?.content;
+          if (content) {
+            const parsed = parseAiJson(content);
+            if (parsed) return { data: parsed };
+          }
+        } else {
+          const errText = await res.text();
+          logs.push(`Groq (${model}) HTTP ${res.status}: ${errText.slice(0, 120)}`);
         }
-      } else {
-        const errText = await res.text();
-        console.error("[Chat AI] Gemini returned non-OK:", res.status, errText);
+      } catch (err: any) {
+        logs.push(`Groq (${model}) Exception: ${err?.message || err}`);
       }
-    } catch (err) {
-      console.error("[Chat AI] Gemini fetch exception:", err);
     }
   }
 
-  return null;
+  if (!geminiKey) {
+    logs.push("Gemini: GEMINI_API_KEY belum diset di environment variable");
+  } else {
+    const geminiModels = ["gemini-flash-latest", "gemini-3.6-flash"];
+    for (const model of geminiModels) {
+      try {
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              system_instruction: {
+                parts: [{ text: EXTRACTION_PROMPT }],
+              },
+              contents: [
+                { role: "user", parts: [{ text: userPrompt }] },
+              ],
+              generationConfig: {
+                temperature: 0.1,
+                maxOutputTokens: 1000,
+                responseMimeType: "application/json",
+              },
+            }),
+          }
+        );
+
+        if (res.ok) {
+          const json = await res.json();
+          const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) {
+            const parsed = parseAiJson(text);
+            if (parsed) return { data: parsed };
+          }
+        } else {
+          const errText = await res.text();
+          logs.push(`Gemini (${model}) HTTP ${res.status}: ${errText.slice(0, 120)}`);
+        }
+      } catch (err: any) {
+        logs.push(`Gemini (${model}) Exception: ${err?.message || err}`);
+      }
+    }
+  }
+
+  return { data: null, debugError: logs.join(" | ") };
 }
 
 export async function POST(request: NextRequest) {
@@ -352,10 +371,13 @@ export async function POST(request: NextRequest) {
     return Response.json({ response: "❌ Command tidak dikenal. Gunakan /help untuk melihat daftar perintah." });
   }
 
-  const extracted = await extractTaskFromMessage(text);
+  const extractionResult = await extractTaskFromMessage(text);
+  const extracted = extractionResult.data;
 
   if (!extracted) {
-    return Response.json({ response: "❌ Maaf, saya sedang tidak bisa memproses pesanmu karena ada masalah sistem (Gagal memanggil AI model). Coba beberapa saat lagi." });
+    return Response.json({
+      response: `❌ Maaf, saya sedang tidak bisa memproses pesanmu karena ada masalah sistem (Gagal memanggil AI model).\n\n🔍 **Detail Masalah Server:**\n\`${extractionResult.debugError || "Koneksi ke semua AI model gagal."}\``
+    });
   }
 
   if (extracted.action === "invalid") {

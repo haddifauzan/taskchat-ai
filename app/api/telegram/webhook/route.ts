@@ -105,81 +105,86 @@ function parseAiJson(raw: string): ExtractedTaskAction | null {
 }
 
 async function extractTaskFromMessage(message: string): Promise<ExtractedTaskAction | null> {
-  const groqKey = process.env.GROQ_API_KEY;
-  const geminiKey = process.env.GEMINI_API_KEY;
+  const groqKey = process.env.GROQ_API_KEY?.trim();
+  const geminiKey = process.env.GEMINI_API_KEY?.trim();
 
   const today = new Date().toISOString().split("T")[0];
-
   const userPrompt = `Hari ini: ${today}\n\nPesan mahasiswa:\n"${message}"\n\nEkstrak aksi dan informasi tugas dari pesan di atas sesuai instruksi sistem.`;
 
   // Try Groq first
   if (groqKey) {
-    try {
-      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${groqKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "openai/gpt-oss-120b",
-          messages: [
-            { role: "system", content: EXTRACTION_PROMPT },
-            { role: "user", content: userPrompt },
-          ],
-          temperature: 0.1,
-          max_tokens: 800,
-          response_format: { type: "json_object" },
-        }),
-      });
+    const groqModels = ["openai/gpt-oss-120b", "openai/gpt-oss-20b"];
+    for (const model of groqModels) {
+      try {
+        const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${groqKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: "system", content: EXTRACTION_PROMPT },
+              { role: "user", content: userPrompt },
+            ],
+            temperature: 0.1,
+            max_tokens: 800,
+            response_format: { type: "json_object" },
+          }),
+        });
 
-      if (res.ok) {
-        const json = await res.json();
-        const content = json.choices?.[0]?.message?.content;
-        if (content) {
-          const parsed = parseAiJson(content);
-          if (parsed) return parsed;
+        if (res.ok) {
+          const json = await res.json();
+          const content = json.choices?.[0]?.message?.content;
+          if (content) {
+            const parsed = parseAiJson(content);
+            if (parsed) return parsed;
+          }
         }
+      } catch {
+        // Try next model
       }
-    } catch {
-      // Fall through to Gemini
     }
   }
 
-  // Fallback to Google Gemini (gratis via AI Studio)
+  // Fallback to Google Gemini
   if (geminiKey) {
-    try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${geminiKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            system_instruction: {
-              parts: [{ text: EXTRACTION_PROMPT }],
-            },
-            contents: [
-              { role: "user", parts: [{ text: userPrompt }] },
-            ],
-            generationConfig: {
-              temperature: 0.1,
-              maxOutputTokens: 1000,
-              responseMimeType: "application/json",
-            },
-          }),
-        }
-      );
+    const geminiModels = ["gemini-flash-latest", "gemini-3.6-flash"];
+    for (const model of geminiModels) {
+      try {
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              system_instruction: {
+                parts: [{ text: EXTRACTION_PROMPT }],
+              },
+              contents: [
+                { role: "user", parts: [{ text: userPrompt }] },
+              ],
+              generationConfig: {
+                temperature: 0.1,
+                maxOutputTokens: 1000,
+                responseMimeType: "application/json",
+              },
+            }),
+          }
+        );
 
-      if (res.ok) {
-        const json = await res.json();
-        const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (text) {
-          const parsed = parseAiJson(text);
-          if (parsed) return parsed;
+        if (res.ok) {
+          const json = await res.json();
+          const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) {
+            const parsed = parseAiJson(text);
+            if (parsed) return parsed;
+          }
         }
+      } catch {
+        // Try next model
       }
-    } catch {
-      return null;
     }
   }
 
