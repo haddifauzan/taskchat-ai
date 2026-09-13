@@ -3,17 +3,19 @@ import { NextRequest } from "next/server";
 import { formatDeadlineForDb } from "@/utils/date";
 
 const EXTRACTION_PROMPT = `Kamu adalah asisten AI untuk aplikasi manajemen tugas kuliah (TaskChat AI) untuk mahasiswa Indonesia.
-Tugasmu adalah menganalisis pesan dari mahasiswa dalam bahasa Indonesia dan menentukan aksi apa yang ingin mereka lakukan: membuat tugas baru ("create"), memperbarui tugas ("update"), menghapus tugas ("delete"), atau mendeteksi jika pesan berupa sapaan/tidak sesuai perintah ("invalid").
+Tugasmu adalah menganalisis pesan dari mahasiswa dalam bahasa Indonesia dan menentukan aksi apa yang ingin mereka lakukan: membuat tugas baru ("create"), memperbarui tugas ("update"), menghapus satu tugas ("delete"), menghapus/mereset semua data ("clear_all"), atau mendeteksi jika pesan berupa sapaan/tidak sesuai perintah ("invalid").
 
 Tentukan salah satu dari aksi berikut:
 1. "create" (Membuat tugas baru)
 2. "update" (Memperbarui informasi tugas yang sudah ada seperti nama, deskripsi, deadline, tipe, prioritas, atau status)
-3. "delete" (Menghapus tugas yang sudah ada)
-4. "invalid" (Pesan sapaan, tidak dipahami, tidak sesuai perintah, atau instruksi tidak lengkap/bias)
+3. "delete" (Menghapus satu tugas tertentu yang sudah ada)
+4. "clear_all" (Menghapus semua tugas, semua mata kuliah, atau keduanya sekaligus. Misal: "hapus semua tugas", "hapus semua mata kuliah", "hapus semua courses", "hapus semua data tugas dan courses", "reset database", "bersihkan semua tugasku")
+5. "invalid" (Pesan sapaan, tidak dipahami, tidak sesuai perintah, atau instruksi tidak lengkap/bias)
 
 Format JSON yang wajib diikuti:
 {
-  "action": "create" | "update" | "delete" | "invalid",
+  "action": "create" | "update" | "delete" | "clear_all" | "invalid",
+  "clear_scope": "all" | "tasks" | "courses",
   "search_query": "string (hanya untuk update dan delete, tanpa kata kerja hapus/ubah)",
   "task_data": {
     "title": "string (nama tugas baru yang ringkas)",
@@ -28,7 +30,11 @@ Format JSON yang wajib diikuti:
 }
 
 Ketentuan Khusus:
-- "action": Wajib diisi salah satu dari: "create", "update", "delete", "invalid".
+- "action": Wajib diisi salah satu dari: "create", "update", "delete", "clear_all", "invalid".
+- "clear_scope": Wajib diisi jika action adalah "clear_all":
+  * "all" jika meminta hapus semua tugas dan mata kuliah/courses (atau "hapus semuanya", "reset database", "bersihkan semua")
+  * "tasks" jika hanya meminta hapus semua tugas
+  * "courses" jika hanya meminta hapus semua mata kuliah / courses
 - "search_query": Wajib diisi untuk aksi "update" dan "delete". Tentukan nama tugas, mata kuliah, atau kata kunci tugas lama yang ingin dicari (misal: jika user berkata "ubah deadline tugas kalkulus ke besok", maka search_query adalah "kalkulus"). Jangan sertakan kata kerja seperti "hapus", "ubah", "selesaikan", "selesai" di dalam search_query.
 - "task_data": Wajib gunakan nama kunci "title" (bukan name/judul) dan "course" (bukan subject/mata_kuliah).
   * "priority": "high" jika deadline < 3 hari, "medium" jika < 7 hari, "low" jika > 7 hari atau tidak ada deadline.
@@ -40,7 +46,8 @@ Ketentuan Khusus:
 Jawab HANYA dengan JSON valid, tanpa markdown atau penjelasan tambahan.`;
 
 interface ExtractedTaskAction {
-  action: "create" | "update" | "delete" | "invalid";
+  action: "create" | "update" | "delete" | "clear_all" | "invalid";
+  clear_scope?: "all" | "tasks" | "courses";
   search_query?: string;
   task_data?: {
     title?: string;
@@ -228,13 +235,17 @@ export async function POST(request: NextRequest) {
       `• **Tambah Tugas:** *"Tugas Fisika membuat resume bab 2 deadline senin depan"*\n` +
       `• **Ubah Detail Tugas:** *"Ubah deadline tugas membuat resume Fisika jadi besok"*\n` +
       `• **Ubah Status Tugas:** *"Tandai tugas resume Fisika sedang dikerjakan"* atau *"Tugas resume Fisika sudah selesai"*\n` +
-      `• **Hapus Tugas:** *"Hapus tugas resume Fisika"*\n\n` +
+      `• **Hapus Tugas:** *"Hapus tugas resume Fisika"*\n` +
+      `• **Hapus Semua Data:** *"Hapus semua tugas dan mata kuliah"* atau *"Hapus semua tugas"*\n\n` +
       `📋 **Daftar Perintah Bot:**\n` +
       `/today - Tugas hari ini\n` +
       `/upcoming - Deadline terdekat (7 hari)\n` +
       `/tasks - Semua tugas aktif (belum selesai)\n` +
       `/courses - Daftar mata kuliah\n` +
       `/stats - Statistik tugas kuliahmu\n` +
+      `/clearall - Hapus semua tugas dan mata kuliah\n` +
+      `/cleartasks - Hapus semua tugas saja\n` +
+      `/clearcourses - Hapus semua mata kuliah saja\n` +
       `/help - Tampilkan bantuan ini`
     });
   }
@@ -242,6 +253,63 @@ export async function POST(request: NextRequest) {
   if (text.startsWith("/")) {
     const cmd = text.toLowerCase().split(" ")[0];
     const now = new Date();
+
+    if (cmd === "/clearall") {
+      const { count: countTasks, error: errTasks } = await supabase
+        .from("assignments")
+        .delete({ count: "exact" })
+        .eq("user_id", user.id);
+
+      const { count: countCourses, error: errCourses } = await supabase
+        .from("courses")
+        .delete({ count: "exact" })
+        .eq("user_id", user.id);
+
+      if (errTasks || errCourses) {
+        return Response.json({ response: "❌ Gagal membersihkan data. Silakan coba lagi." });
+      }
+
+      return Response.json({
+        response: `🗑️ **Semua data berhasil dibersihkan!**\n\n` +
+          `• 📝 **${countTasks ?? 0}** tugas dihapus\n` +
+          `• 📚 **${countCourses ?? 0}** mata kuliah dihapus`
+      });
+    }
+
+    if (cmd === "/cleartasks") {
+      const { count: countTasks, error: errTasks } = await supabase
+        .from("assignments")
+        .delete({ count: "exact" })
+        .eq("user_id", user.id);
+
+      if (errTasks) {
+        return Response.json({ response: "❌ Gagal menghapus tugas. Silakan coba lagi." });
+      }
+
+      return Response.json({
+        response: `🗑️ **Semua tugas berhasil dibersihkan!**\n\nTotal **${countTasks ?? 0}** tugas dihapus.`
+      });
+    }
+
+    if (cmd === "/clearcourses") {
+      await supabase
+        .from("assignments")
+        .update({ course_id: null })
+        .eq("user_id", user.id);
+
+      const { count: countCourses, error: errCourses } = await supabase
+        .from("courses")
+        .delete({ count: "exact" })
+        .eq("user_id", user.id);
+
+      if (errCourses) {
+        return Response.json({ response: "❌ Gagal menghapus mata kuliah. Silakan coba lagi." });
+      }
+
+      return Response.json({
+        response: `🗑️ **Semua mata kuliah berhasil dibersihkan!**\n\nTotal **${countCourses ?? 0}** mata kuliah dihapus.`
+      });
+    }
 
     if (cmd === "/today") {
       const jakartaDateFormatter = new Intl.DateTimeFormat("en-CA", {
@@ -388,6 +456,68 @@ export async function POST(request: NextRequest) {
       "• *\"Ubah status tugas web ke selesai\"*\n" +
       "• *\"Hapus tugas kalkulus\"*";
     return Response.json({ response: feedback });
+  }
+
+  if (extracted.action === "clear_all") {
+    const scope = extracted.clear_scope || "all";
+
+    if (scope === "all") {
+      const { count: countTasks, error: errTasks } = await supabase
+        .from("assignments")
+        .delete({ count: "exact" })
+        .eq("user_id", user.id);
+
+      const { count: countCourses, error: errCourses } = await supabase
+        .from("courses")
+        .delete({ count: "exact" })
+        .eq("user_id", user.id);
+
+      if (errTasks || errCourses) {
+        return Response.json({ response: "❌ Gagal membersihkan data. Silakan coba lagi." });
+      }
+
+      return Response.json({
+        response: `🗑️ **Berhasil menghapus semua data!**\n\n` +
+          `• 📝 **${countTasks ?? 0}** tugas dihapus\n` +
+          `• 📚 **${countCourses ?? 0}** mata kuliah dihapus\n\n` +
+          `Database tugas dan mata kuliah Anda sekarang sudah bersih kembali.`
+      });
+    }
+
+    if (scope === "tasks") {
+      const { count: countTasks, error: errTasks } = await supabase
+        .from("assignments")
+        .delete({ count: "exact" })
+        .eq("user_id", user.id);
+
+      if (errTasks) {
+        return Response.json({ response: "❌ Gagal menghapus tugas. Silakan coba lagi." });
+      }
+
+      return Response.json({
+        response: `🗑️ **Semua tugas berhasil dihapus!**\n\nTotal **${countTasks ?? 0}** tugas telah dibersihkan dari daftar.`
+      });
+    }
+
+    if (scope === "courses") {
+      await supabase
+        .from("assignments")
+        .update({ course_id: null })
+        .eq("user_id", user.id);
+
+      const { count: countCourses, error: errCourses } = await supabase
+        .from("courses")
+        .delete({ count: "exact" })
+        .eq("user_id", user.id);
+
+      if (errCourses) {
+        return Response.json({ response: "❌ Gagal menghapus mata kuliah. Silakan coba lagi." });
+      }
+
+      return Response.json({
+        response: `🗑️ **Semua mata kuliah berhasil dihapus!**\n\nTotal **${countCourses ?? 0}** mata kuliah telah dibersihkan dari daftar.`
+      });
+    }
   }
 
   if (extracted.action === "create") {
